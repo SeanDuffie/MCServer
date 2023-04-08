@@ -1,0 +1,18 @@
+{
+  "format_version": 2,
+  "header": {
+    "uuid": "f4e6477f-688e-4ccb-b3c0-4099943e380d",
+    "name": "experimental sniffer",
+    "description": "Sniffer",
+    "version": [ 0, 0, 1 ],
+    "min_engine_version": [ 1, 19, 0 ]
+  },
+  "modules": [
+    {
+      "description": "Sniffer under development",
+      "type": "data",
+      "uuid": "f4e6477f-688e-4ccb-b3c0-4099943e3000",
+      "version": [ 0, 0, 1 ]
+    }
+  ]
+}
