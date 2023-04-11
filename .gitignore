@@ -1,5 +1,6 @@
-# Bedrock temporary
-# bedrock_server.pdb
+# Bedrock generated files
+Bedrock/worlds/*
+valid_known_packs.json
 
 target/
 pom.xml.tag
