@@ -1,3 +1,6 @@
+# Output Files
+*.zip
+
 # Bedrock generated files
 Bedrock/worlds/*
 valid_known_packs.json
