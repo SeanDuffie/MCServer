@@ -19,15 +19,24 @@ daily_cap = 3
 
 ### PATH SECTION ###
 default_dir = os.path.dirname(__file__)
-minecraft_dir = filedialog.askdirectory(
-                    title="Select Server Directory",
-                    initialdir=f"{default_dir}/world/"
-                )
-backup_dir = filedialog.askdirectory(
-                    title="Select Backup Directory",
-                    initialdir=f"{default_dir}/backups/"
-                )
-executable = f'java -Xmx{min_ram * 1024}m -XX:+UseConcMarkSweepGC -jar "{minecraft_dir}/spigot-1.12.2.jar"'
+minecraft_dir = default_dir + "/Server/"
+while minecraft_dir is None:
+    minecraft_dir = filedialog.askdirectory(
+                        title="Select Server Directory",
+                        initialdir=f"{default_dir}/"
+                    )
+backup_dir = minecraft_dir + "/backups/"
+while backup_dir is None:
+    backup_dir = filedialog.askdirectory(
+                        title="Select Backup Directory",
+                        initialdir=f"{default_dir}/"
+                    )
+
+for filename in os.listdir(minecraft_dir):
+    if filename.endswith(".jar"):
+        print(f"Running file: {filename}")
+        executable = f'java -Xmx{min_ram * 1024}m -jar "{filename}"'
+        break
 # TODO: Is this needed?
 exclude_file = "plugins/dynmap"
 
@@ -44,7 +53,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger('MCLOG')
-logging.info(f"Logname: {logname}")
+logging.info("Logname: %s", logname)
 
 def server_command(cmd: str):
     """ Sends a string from the local python script to the server shell process
@@ -77,9 +86,9 @@ def filter_function(tarinfo):
     Returns:
         _type_: _description_
     """
-     if tarinfo.name != exclude_file:
-          logging.info(tarinfo.name,"ADDED")
-          return tarinfo
+    if tarinfo.name != exclude_file:
+        logging.info(tarinfo.name,"ADDED")
+        return tarinfo
 
 def make_tarfile(output_filename, source_dir):
     logging.info('Making tarfile')
@@ -158,6 +167,12 @@ if __name__ == "__main__":
         t = Timer(next_backuptime(), backup) # FIND NEXT HOURLY MARK
         t.start() # START BACKUP FOR THEN
         logging.info('Timer started')
+        # TODO: add handling for ctrl+c
+        # TODO: cleanly kill threads and process
+        # TODO: add text input for commands to server
+        # TODO: restructure backup style and timings
+        pre = input("Pre Try")
     except:
         logging.info('',exc_info=True)
         os.popen('TASKKILL /PID '+str(process.pid)+' /F')
+    post = input("Post Try")
