@@ -3,6 +3,7 @@
     @brief 
 """
 import datetime
+import signal
 import logging
 import os
 import subprocess
@@ -58,6 +59,37 @@ logging.basicConfig(
 logger = logging.getLogger('MCLOG')
 logging.info("Logname: %s", logname)
 
+global server
+global h_timer
+global d_timer
+FLAG = True
+
+def handler(signum, frame) -> None:
+    """This function will handle any system interrupts that we decide to use
+    It relies on the "signal" python library (see documentation below)
+    https://docs.python.org/3/library/signal.html
+
+    TODO: Add more handling so that the errors can return more information
+
+    Args:
+        signum (int): number associated with interrupt
+        frame (frame): = location that the interrupt came from
+        signame (str): reads the name of the interrupt to the user
+    Returns:
+        None
+    """
+    signame = signal.Signals(signum).name
+    logging.error("%s\t| Signal handler called with signal %s (%d)", __name__, signame, signum)
+    logging.info("%s\t| Frame = %s", __name__, frame)
+
+    # Handles a user input Ctrl + C
+    if signame == "SIGINT":
+        logging.info("%s\t| User manually initiated shutdown using \"CTRL+C\"...", __name__)
+        global FLAG
+        FLAG = False
+        h_timer.cancel()
+        d_timer.cancel()
+
 class Server():
     """_summary_
     """
@@ -72,6 +104,9 @@ class Server():
 
     def __del__(self):
         logging.warning("Deleting a Server object...")
+        # self.server_command("stop")
+        # time.sleep(10)
+        logging.warning("Cancelling Process...")
         os.popen('TASKKILL /PID '+str(self.process.pid)+' /F')
         logging.warning("Done!")
 
@@ -85,7 +120,7 @@ class Server():
         self.process.stdin.write(str.encode(f"{cmd}\n")) #just write the command to the input stream
         self.process.stdin.flush()
 
-    def backup(self, backup_type: Literal["daily", "hourly", "manual"]):
+    def backup(self, backup_type: Literal["Daily", "Hourly", "Manual"]):
         """_summary_
 
         Returns:
@@ -100,7 +135,7 @@ class Server():
         cur_time = datetime.datetime.now()
 
         # Temporarily Disable Autosave
-        self.server_command("say Backup starting. World no longer saving...")
+        self.server_command(f"say {backup_type} backup starting. World no longer saving...")
         self.server_command("save-off")
         self.server_command("save-all")
         time.sleep(3)
@@ -115,9 +150,9 @@ class Server():
                 prev_backup_type = parsed[1]
                 tstmp = datetime.datetime.fromisoformat("%Y-%m-%dT%H-%m-%s", parsed[2])
 
-                if prev_backup_type == "hourly" and (cur_time - tstmp) > datetime.timedelta(hours=HCAP):
+                if prev_backup_type == "Hourly" and (cur_time - tstmp) > datetime.timedelta(hours=HCAP):
                     os.remove(filename)
-                elif prev_backup_type == "daily" and (cur_time - tstmp) > datetime.timedelta(days=DCAP):
+                elif prev_backup_type == "Daily" and (cur_time - tstmp) > datetime.timedelta(days=DCAP):
                     os.remove(filename)
         except OSError as e:
             logging.error(e)
@@ -148,18 +183,18 @@ def make_tarfile(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir),filter=filter_function)
 
-# def next_backuptime(last: datetime.datetime, backup_type: Literal['daily', 'hourly', 'manual']):
+# def next_backuptime(last: datetime.datetime, backup_type: Literal['Daily', 'Hourly', 'Manual']):
 #     """ TODO: Add better docs
 
 #     Returns:
 #         int: seconds left before next backup
 #     """
 #     logging.info('Calculating next time')
-#     if backup_type == "daily":
+#     if backup_type == "Daily":
 #         interval = datetime.timedelta(days=1)
-#     elif backup_type == "hourly":
+#     elif backup_type == "Hourly":
 #         interval = datetime.timedelta(hours=1)
-#     elif backup_type == "manual":
+#     elif backup_type == "Manual":
 #     interval = datetime.timedelta(hours=1)
 #     current = datetime.datetime.today()
 #     next_time = current + interval
@@ -174,21 +209,30 @@ class BackupTimer(threading.Timer):
             logging.info("Next %s Backup time is at %s", *self.args[0], next_time)
 
 if __name__ == "__main__":
+    global server
     server = Server(server_name="Server")
-    time.sleep(60) # WAIT FOR IT TO START
+    time.sleep(45) # WAIT FOR IT TO START
     # TODO: Maybe check if process is alive? (EULA, crash)
 
     logging.info('Starting backup timer')
-    h_timer = BackupTimer(360, server.backup, args=("hourly",))
-    d_timer = BackupTimer(86400, server.backup, args=("daily",))
+    h_timer = BackupTimer(360, server.backup, args=("Hourly",))
+    d_timer = BackupTimer(86400, server.backup, args=("Daily",))
     logging.info("Timers Initialized")
     h_timer.start()
     d_timer.start()
     logging.info('Timer started')
 
-    while True:
+    # Initialize Listener (for CTRL+C interrupts)
+    signal.signal(signal.SIGINT, handler)
+
+    while FLAG:
         command = input("Send a manual command: /")
-        server.server_command(command)
+        if command == "restore":
+            pass
+        if command == "backup":
+            server.backup(backup_type="Manual")
+        else:
+            server.server_command(command)
     # TODO: add handling for ctrl+c
     # TODO: cleanly kill threads and process
     # TODO: add text input for commands to server
