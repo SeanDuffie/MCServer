@@ -2,46 +2,49 @@
     @author Sean Duffie
     @brief 
 """
+import datetime
 import logging
 import os
 import subprocess
 import sys
-import tarfile
 import time
-from datetime import datetime
-from threading import Timer
+import threading
 from tkinter import filedialog
 
+import tarfile
+import shutil
+from typing import Literal
+
 ### CONSTANTS SECTION ###
-min_ram = 8
-hourly_cap = 6
-daily_cap = 3
+RAM = 8
+HCAP = 6
+DCAP = 3
+server_name = "Server"
 
 ### PATH SECTION ###
-default_dir = os.path.dirname(__file__)
-minecraft_dir = default_dir + "/Server/"
-while minecraft_dir is None:
-    minecraft_dir = filedialog.askdirectory(
+default_path = os.path.dirname(__file__)
+server_path = default_path + "/Server/"
+while server_path is None:
+    server_path = filedialog.askdirectory(
                         title="Select Server Directory",
-                        initialdir=f"{default_dir}/"
+                        initialdir=f"{default_path}/"
                     )
-backup_dir = minecraft_dir + "/backups/"
-while backup_dir is None:
-    backup_dir = filedialog.askdirectory(
+backup_path = server_path + "/backups/"
+while backup_path is None:
+    backup_path = filedialog.askdirectory(
                         title="Select Backup Directory",
-                        initialdir=f"{default_dir}/"
+                        initialdir=f"{default_path}/"
                     )
 
-for filename in os.listdir(minecraft_dir):
+for filename in os.listdir(server_path):
     if filename.endswith(".jar"):
-        print(f"Running file: {filename}")
-        executable = f'java -Xmx{min_ram * 1024}m -jar "{filename}"'
+        executable = f'java -Xmx{RAM * 1024}m -jar "{filename}"'
         break
 # TODO: Is this needed?
 exclude_file = "plugins/dynmap"
 
 ### LOGGING SECTION ###
-logname = minecraft_dir + '/' + 'MCSERVER.log'
+logname = server_path + '/' + 'MCSERVER.log'
 file_handler = logging.FileHandler(filename=logname)
 stdout_handler = logging.StreamHandler(sys.stdout)
 handlers = [file_handler, stdout_handler]
@@ -55,124 +58,138 @@ logging.basicConfig(
 logger = logging.getLogger('MCLOG')
 logging.info("Logname: %s", logname)
 
-def server_command(cmd: str):
-    """ Sends a string from the local python script to the server shell process
-
-    Args:
-        cmd (str): The command string to be sent to the server
+class Server():
+    """_summary_
     """
-    logging.info("Writing server command: %s", cmd)
-    process.stdin.write(str.encode('%s\n' %cmd)) #just write the command to the input stream
-    process.stdin.flush()
+    def __init__(self, server_name: str = "Server"):
+        self.server_name = server_name
+        self.backup_flag = False
 
-def server_start():
-    """ Start the server in a subprocess and return a link to it.
+        os.chdir(server_path)
+        logging.info('Starting server')
+        self.process = subprocess.Popen(executable, stdin=subprocess.PIPE)
+        logging.info("Server started.")
 
-    Returns:
-        subprocess.Popen: The subprocess interface to the executable.
-    """
-    os.chdir(minecraft_dir)
-    logging.info('Starting server')
-    process = subprocess.Popen(executable, stdin=subprocess.PIPE)
-    logging.info("Server started.")
-    return process
+    def __del__(self):
+        logging.warning("Deleting a Server object...")
+        os.popen('TASKKILL /PID '+str(self.process.pid)+' /F')
+        logging.warning("Done!")
 
-def filter_function(tarinfo):
-    """ TODO: What does this function do?
+    def server_command(self, cmd: str):
+        """ Sends a string from the local python script to the server shell process
 
-    Args:
-        tarinfo (_type_): _description_
+        Args:
+            cmd (str): The command string to be sent to the server
+        """
+        logging.info("Writing server command: %s", cmd)
+        self.process.stdin.write(str.encode(f"{cmd}\n")) #just write the command to the input stream
+        self.process.stdin.flush()
 
-    Returns:
-        _type_: _description_
-    """
-    if tarinfo.name != exclude_file:
-        logging.info(tarinfo.name,"ADDED")
-        return tarinfo
+    def backup(self, backup_type: Literal["daily", "hourly", "manual"]):
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
+        # Flags to ensure that different threads don't step on each other
+        while self.backup_flag:
+            time.sleep(.1)
+        self.backup_flag = True
+
+        # Grab the starting time for the backup
+        cur_time = datetime.datetime.now()
+
+        # Temporarily Disable Autosave
+        self.server_command("say Backup starting. World no longer saving...")
+        self.server_command("save-off")
+        self.server_command("save-all")
+        time.sleep(3)
+
+        # Delete Expired Backups
+        logging.info('Deleting last file')
+        try:
+            for filename in os.listdir(server_path):
+                # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
+                parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
+                s_name = parsed[0]
+                prev_backup_type = parsed[1]
+                tstmp = datetime.datetime.fromisoformat("%Y-%m-%dT%H-%m-%s", parsed[2])
+
+                if prev_backup_type == "hourly" and (cur_time - tstmp) > datetime.timedelta(hours=HCAP):
+                    os.remove(filename)
+                elif prev_backup_type == "daily" and (cur_time - tstmp) > datetime.timedelta(days=DCAP):
+                    os.remove(filename)
+        except OSError as e:
+            logging.error(e)
+            logging.error("Error Removing Backup")
+
+        # Make the Backup
+        backup_name = f"{self.server_name}_{backup_type}_{cur_time.strftime("%Y-%m-%dT%H-%m-%s")}"
+        # Create a tar archive of the Minecraft server world
+        make_tarfile(f"{backup_path}/{backup_name}.tar.gz", server_path)
+        # Create a zip archive of the Minecraft server world
+        shutil.make_archive(os.path.join(backup_path, backup_name), 'zip', server_path)
+        # Resume Autosave
+        self.server_command("save-on")
+        self.server_command("say Backup complete. World now saving. ")
+
+        self.backup_flag = False
+        return True
+
 
 def make_tarfile(output_filename, source_dir):
     logging.info('Making tarfile')
+
+    def filter_function(tarinfo):
+        if tarinfo.name != exclude_file:
+            logging.info(tarinfo.name,"ADDED")
+            return tarinfo
+
     with tarfile.open(output_filename, "w:gz") as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir),filter=filter_function)
 
-def backup():
-    global t
-    server_command("say Backup starting. World no longer saving...")
-    server_command("save-off")
-    server_command("save-all")
-    time.sleep(3)
-    os.chdir(backup_dir)
-    logging.info('Deleting last file')
-    try:
-        os.remove(f"{backup_dir}/minecraft-hour24.tar.gz")
-    except OSError:
-        pass
-    logging.info('Renaming old files')
-    # FIXME: This is a terrible iteration system, I bet I can do better with simple datetime and timeintervals
-    for i in range(24,0,-1):
-        try:
-            os.rename(
-                f"{backup_dir}\\minecraft-hour{i-1}.tar.gz",
-                f"{backup_dir}\\minecraft-hour{i}.tar.gz"
-            )
-        except:
-            pass
-    make_tarfile("%s\\minecraft-hour0.tar.gz"%backup_dir, minecraft_dir+"/")
-    server_command("save-on")
-    server_command("say Backup complete. World now saving. ")
-    logging.info('Starting new timer')
-    try:
-        t = Timer(next_backuptime(), backup) # FIND NEXT HOURLY MARK
-        t.start() # START BACKUP FOR THEN
-        logging.info('New timer started')
-    except:
-        logging.info('',exc_info=True)
-        os.popen('TASKKILL /PID '+str(process.pid)+' /F')
+# def next_backuptime(last: datetime.datetime, backup_type: Literal['daily', 'hourly', 'manual']):
+#     """ TODO: Add better docs
 
-def next_backuptime():
-    """ TODO: Add better docs
+#     Returns:
+#         int: seconds left before next backup
+#     """
+#     logging.info('Calculating next time')
+#     if backup_type == "daily":
+#         interval = datetime.timedelta(days=1)
+#     elif backup_type == "hourly":
+#         interval = datetime.timedelta(hours=1)
+#     elif backup_type == "manual":
+#     interval = datetime.timedelta(hours=1)
+#     current = datetime.datetime.today()
+#     next_time = current + interval
+#     logging.info("Next backup time is %s", next_time)
+#     return interval
 
-    Returns:
-        int: seconds left before next backup
-    """
-    logging.info('Calculating next time')
-    x=datetime.today()
-    if x.hour != 23:
-        y=x.replace(hour=x.hour+1, minute=0, second=0, microsecond=0)
-    else:
-        try:
-            y=x.replace(day=x.day+1,hour=0,minute=0,second=0,microsecond=0)
-        except:
-            try:
-                y=x.replace(month=x.month+1,day=1,hour=0,minute=0,second=0,microsecond=0)
-            except:
-                try:
-                    y=x.replace(year=x.year+1,month=1,day=1,hour=0,minute=0,second=0,microsecond=0)
-                except:
-                    logging.info('I, the backup script, have no idea what time it is in an hour.',exc_info=True)
-                    os.popen('TASKKILL /PID '+str(process.pid)+' /F')
-    logging.info('Next backup time is %s' %y)
-    delta_t=y-x
-    secs=delta_t.seconds+1
-    return secs
-
-
+class BackupTimer(threading.Timer):
+    def run(self):
+        while not self.finished.wait(self.interval):
+            self.function(*self.args, **self.kwargs)
+            next_time = datetime.datetime.now() + self.interval
+            logging.info("Next %s Backup time is at %s", *self.args[0], next_time)
 
 if __name__ == "__main__":
-    process=server_start() # START SERVER
+    server = Server(server_name="Server")
     time.sleep(60) # WAIT FOR IT TO START
+    # TODO: Maybe check if process is alive? (EULA, crash)
 
     logging.info('Starting backup timer')
-    try:
-        t = Timer(next_backuptime(), backup) # FIND NEXT HOURLY MARK
-        t.start() # START BACKUP FOR THEN
-        logging.info('Timer started')
-        # TODO: add handling for ctrl+c
-        # TODO: cleanly kill threads and process
-        # TODO: add text input for commands to server
-        # TODO: restructure backup style and timings
-        pre = input("Pre Try")
-    except:
-        logging.info('',exc_info=True)
-        os.popen('TASKKILL /PID '+str(process.pid)+' /F')
-    post = input("Post Try")
+    h_timer = BackupTimer(360, server.backup, args=("hourly",))
+    d_timer = BackupTimer(86400, server.backup, args=("daily",))
+    logging.info("Timers Initialized")
+    h_timer.start()
+    d_timer.start()
+    logging.info('Timer started')
+
+    while True:
+        command = input("Send a manual command: /")
+        server.server_command(command)
+    # TODO: add handling for ctrl+c
+    # TODO: cleanly kill threads and process
+    # TODO: add text input for commands to server
+    # TODO: restructure backup style and timings
