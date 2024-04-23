@@ -1,7 +1,9 @@
 """ @file backup.py
     @author Sean Duffie
-        - inspiration taken from xangma at https://github.com/xangma/mcbackup/blob/master/mcbackup.py
+        - inspiration taken from xangma: https://github.com/xangma/mcbackup/blob/master/mcbackup.py
     @brief 
+
+    TODO: Separate Backup script into separate file for simplicity and reusability
 
     https://www.minecraft.net/en-us/download/server
 """
@@ -10,12 +12,12 @@ import logging
 import os
 import shutil
 import subprocess
-import sys
 import tarfile
 import threading
 import time
 from tkinter import filedialog
 from typing import Literal
+import logFormat
 
 ### CONSTANTS SECTION ###
 RAM = 8
@@ -26,18 +28,23 @@ RUNNING = False
 
 ### PATH SECTION ###
 default_path = os.path.dirname(__file__)
-server_path = f"{default_path}/{SERVER_NAME}/"
+server_path = None
+# server_path = f"{default_path}/{SERVER_NAME}/"
 while server_path is None:
     server_path = filedialog.askdirectory(
                         title="Select Server Directory",
                         initialdir=f"{default_path}/"
                     )
-backup_path = f"{server_path}../backups/{SERVER_NAME}"
-while backup_path is None:
-    backup_path = filedialog.askdirectory(
-                        title="Select Backup Directory",
-                        initialdir=f"{default_path}/"
-                    )
+if server_path == "":
+    exit()
+# backup_path = None
+backup_path = f"{server_path}/../backups/{SERVER_NAME}"
+os.makedirs(name=backup_path, exist_ok=True)
+# while backup_path is None:
+#     backup_path = filedialog.askdirectory(
+#                         title="Select Backup Directory",
+#                         initialdir=f"{default_path}/"
+#                     )
 
 for filename in os.listdir(server_path):
     if filename.endswith(".jar"):
@@ -48,18 +55,8 @@ exclude_file = "plugins/dynmap"
 
 ### LOGGING SECTION ###
 logname = server_path + '/' + 'MCSERVER.log'
-file_handler = logging.FileHandler(filename=logname)
-stdout_handler = logging.StreamHandler(sys.stdout)
-handlers = [file_handler, stdout_handler]
-
-FMT_MAIN = "%(asctime)s\t| %(name)s:%(lineno)d\t| %(message)s"
-logging.basicConfig(
-    level=logging.DEBUG,
-    format=FMT_MAIN,
-    handlers=handlers
-)
-
-logger = logging.getLogger('MCLOG')
+logFormat.format_logs(logger_name="MCLOG", file_name=logname)
+logger = logging.getLogger("MCLOG")
 logger.info("Logname: %s", logname)
 
 
@@ -159,23 +156,6 @@ def make_tarfile(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
         tar.add(source_dir, arcname=os.path.basename(source_dir),filter=filter_function)
 
-# def next_backuptime(last: datetime.datetime, backup_type: Literal['Daily', 'Hourly', 'Manual']):
-#     """ TODO: Add better docs
-
-#     Returns:
-#         int: seconds left before next backup
-#     """
-#     logger.info('Calculating next time')
-#     if backup_type == "Daily":
-#         interval = datetime.timedelta(days=1)
-#     elif backup_type == "Hourly":
-#         interval = datetime.timedelta(hours=1)
-#     elif backup_type == "Manual":
-#     interval = datetime.timedelta(hours=1)
-#     current = datetime.datetime.today()
-#     next_time = current + interval
-#     logger.info("Next backup time is %s", next_time)
-#     return interval
 
 class BackupTimer(threading.Timer):
     def run(self):
@@ -183,6 +163,7 @@ class BackupTimer(threading.Timer):
             self.function(*self.args, **self.kwargs)
             next_time = datetime.datetime.now() + self.interval
             logger.info("Next %s Backup time is at %s", *self.args[0], next_time)
+
 
 if __name__ == "__main__":
     server = Server(server_name=SERVER_NAME)
@@ -207,7 +188,7 @@ if __name__ == "__main__":
             else:
                 server.server_command(command)
     except KeyboardInterrupt:
-        logger.info("%s\t| User manually initiated shutdown using \"CTRL+C\"...", __name__)
+        logger.info("User manually initiated shutdown using \"CTRL+C\"...")
 
     logger.info("Killing Timers...")
     h_timer.cancel()
