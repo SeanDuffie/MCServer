@@ -9,7 +9,6 @@ import datetime
 import logging
 import os
 import shutil
-import signal
 import subprocess
 import sys
 import tarfile
@@ -22,18 +21,18 @@ from typing import Literal
 RAM = 8
 HCAP = 6
 DCAP = 3
-server_name = "Server"
+SERVER_NAME = "Server"
 RUNNING = False
 
 ### PATH SECTION ###
 default_path = os.path.dirname(__file__)
-server_path = f"{default_path}/{server_name}/"
+server_path = f"{default_path}/{SERVER_NAME}/"
 while server_path is None:
     server_path = filedialog.askdirectory(
                         title="Select Server Directory",
                         initialdir=f"{default_path}/"
                     )
-backup_path = server_path + "../backups/"
+backup_path = f"{server_path}../backups/{SERVER_NAME}"
 while backup_path is None:
     backup_path = filedialog.askdirectory(
                         title="Select Backup Directory",
@@ -63,33 +62,6 @@ logging.basicConfig(
 logger = logging.getLogger('MCLOG')
 logger.info("Logname: %s", logname)
 
-FLAG = False
-
-def handler(signum, frame) -> None:
-    """This function will handle any system interrupts that we decide to use
-    It relies on the "signal" python library (see documentation below)
-    https://docs.python.org/3/library/signal.html
-
-    TODO: Add more handling so that the errors can return more information
-
-    Args:
-        signum (int): number associated with interrupt
-        frame (frame): = location that the interrupt came from
-        signame (str): reads the name of the interrupt to the user
-    Returns:
-        None
-    """
-    signame = signal.Signals(signum).name
-    logger.error("%s\t| Signal handler called with signal %s (%d)", __name__, signame, signum)
-    logger.info("%s\t| Frame = %s", __name__, frame)
-
-    # Handles a user input Ctrl + C
-    if signame == "SIGINT":
-        logging.info("%s\t| User manually initiated shutdown using \"CTRL+C\"...", __name__)
-        global FLAG
-        FLAG = False
-        h_timer.cancel()
-        d_timer.cancel()
 
 class Server():
     """_summary_
@@ -103,23 +75,19 @@ class Server():
         self.process = subprocess.Popen(executable, stdin=subprocess.PIPE)
         logger.info("Server started.")
 
-    def __del__(self):
-        logging.warning("Deleting a Server object...")
-        # self.server_command("stop")
-        # time.sleep(10)
-        logging.warning("Cancelling Process...")
-        os.popen('TASKKILL /PID '+str(self.process.pid)+' /F')
-        logging.warning("Done!")
-
     def server_command(self, cmd: str):
         """ Sends a string from the local python script to the server shell process
 
         Args:
             cmd (str): The command string to be sent to the server
         """
-        logging.info("Writing server command: %s", cmd)
-        self.process.stdin.write(str.encode(f"{cmd}\n")) #just write the command to the input stream
-        self.process.stdin.flush()
+        logger.info("Writing server command: %s", cmd)
+        try:
+            self.process.stdin.write(str.encode(f"{cmd}\n")) #just write the command to the input stream
+            self.process.stdin.flush()
+        except OSError as e:
+            logger.error(e)
+            logger.error("Error Writing to Server")
 
     def backup(self, backup_type: Literal["Daily", "Hourly", "Manual"]):
         """_summary_
@@ -147,7 +115,7 @@ class Server():
             for filename in os.listdir(server_path):
                 # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
                 parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
-                logging.warning("Parsed: ")
+                logger.warning("Parsed: ")
                 print(parsed)
                 s_name = parsed[0]
                 prev_backup_type = parsed[1]
@@ -168,13 +136,16 @@ class Server():
         make_tarfile(f"{backup_path}/{backup_name}.tar.gz", server_path)
         # Create a zip archive of the Minecraft server world
         shutil.make_archive(os.path.join(backup_path, backup_name), 'zip', server_path)
-        shutil.unpack_archive()
         # Resume Autosave
         self.server_command("save-on")
         self.server_command("say Backup complete. World now saving. ")
 
         self.backup_flag = False
         return True
+
+    def restore_backup(self, name: str):
+        # shutil.unpack_archive()
+        pass
 
 
 def make_tarfile(output_filename, source_dir):
@@ -214,12 +185,8 @@ class BackupTimer(threading.Timer):
             logger.info("Next %s Backup time is at %s", *self.args[0], next_time)
 
 if __name__ == "__main__":
-    # Initialize Listener (for CTRL+C interrupts)
-    signal.signal(signal.SIGINT, handler)
-
-    server = Server(server_name="Server")
+    server = Server(server_name=SERVER_NAME)
     time.sleep(45) # WAIT FOR IT TO START
-    FLAG = True
     # TODO: Maybe check if process is alive? (EULA, crash)
 
     logger.info('Starting backup timer')
@@ -228,20 +195,31 @@ if __name__ == "__main__":
     logger.info("Timers Initialized")
     h_timer.start()
     d_timer.start()
-    logging.info('Timer started')
+    logger.info('Timer started')
 
-    # Initialize Listener (for CTRL+C interrupts)
-    signal.signal(signal.SIGINT, handler)
+    try:
+        while True:
+            command = input("Send a manual command: /")
+            if command == "restore":
+                pass
+            if command == "backup":
+                server.backup(backup_type="Manual")
+            else:
+                server.server_command(command)
+    except KeyboardInterrupt:
+        logger.info("%s\t| User manually initiated shutdown using \"CTRL+C\"...", __name__)
 
-    while FLAG:
-        command = input("Send a manual command: /")
-        if command == "restore":
-            pass
-        if command == "backup":
-            server.backup(backup_type="Manual")
-        else:
-            server.server_command(command)
-    logging.info("Exiting the loop!")
+    logger.info("Killing Timers...")
     h_timer.cancel()
     d_timer.cancel()
-    logging.info("Finished!")
+    logger.info("Timers Killed!")
+
+    logger.warning("Stopping Server...")
+    server.server_command("stop")
+    time.sleep(10)
+    logger.info("Server Stopped!")
+    time.sleep(10)
+
+    logger.warning("Killing Server Process...")
+    server.process.kill()
+    logger.warning("Done!")
