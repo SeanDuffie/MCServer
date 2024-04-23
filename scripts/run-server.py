@@ -1,6 +1,9 @@
 """ @file backup.py
     @author Sean Duffie
+        - inspiration taken from xangma at https://github.com/xangma/mcbackup/blob/master/mcbackup.py
     @brief 
+
+    https://www.minecraft.net/en-us/download/server
 """
 import datetime
 import logging
@@ -20,6 +23,7 @@ RAM = 8
 HCAP = 6
 DCAP = 3
 server_name = "Server"
+RUNNING = False
 
 ### PATH SECTION ###
 default_path = os.path.dirname(__file__)
@@ -49,19 +53,17 @@ file_handler = logging.FileHandler(filename=logname)
 stdout_handler = logging.StreamHandler(sys.stdout)
 handlers = [file_handler, stdout_handler]
 
+FMT_MAIN = "%(asctime)s\t| %(name)s:%(lineno)d\t| %(message)s"
 logging.basicConfig(
-    level=logging.DEBUG, 
-    format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',
+    level=logging.DEBUG,
+    format=FMT_MAIN,
     handlers=handlers
 )
 
 logger = logging.getLogger('MCLOG')
 logger.info("Logname: %s", logname)
 
-global server
-global h_timer
-global d_timer
-FLAG = True
+FLAG = False
 
 def handler(signum, frame) -> None:
     """This function will handle any system interrupts that we decide to use
@@ -83,7 +85,7 @@ def handler(signum, frame) -> None:
 
     # Handles a user input Ctrl + C
     if signame == "SIGINT":
-        logger.info("%s\t| User manually initiated shutdown using \"CTRL+C\"...", __name__)
+        logging.info("%s\t| User manually initiated shutdown using \"CTRL+C\"...", __name__)
         global FLAG
         FLAG = False
         h_timer.cancel()
@@ -102,12 +104,12 @@ class Server():
         logger.info("Server started.")
 
     def __del__(self):
-        logger.warning("Deleting a Server object...")
+        logging.warning("Deleting a Server object...")
         # self.server_command("stop")
         # time.sleep(10)
-        logger.warning("Cancelling Process...")
+        logging.warning("Cancelling Process...")
         os.popen('TASKKILL /PID '+str(self.process.pid)+' /F')
-        logger.warning("Done!")
+        logging.warning("Done!")
 
     def server_command(self, cmd: str):
         """ Sends a string from the local python script to the server shell process
@@ -115,7 +117,7 @@ class Server():
         Args:
             cmd (str): The command string to be sent to the server
         """
-        logger.info("Writing server command: %s", cmd)
+        logging.info("Writing server command: %s", cmd)
         self.process.stdin.write(str.encode(f"{cmd}\n")) #just write the command to the input stream
         self.process.stdin.flush()
 
@@ -145,9 +147,11 @@ class Server():
             for filename in os.listdir(server_path):
                 # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
                 parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
+                logging.warning("Parsed: ")
+                print(parsed)
                 s_name = parsed[0]
                 prev_backup_type = parsed[1]
-                tstmp = datetime.datetime.fromisoformat("%Y-%m-%dT%H-%m-%s", parsed[2])
+                tstmp = datetime.datetime.fromisoformat("%Y-%m-%d-%H-%M-%s", parsed[2])
 
                 if prev_backup_type == "Hourly" and (cur_time - tstmp) > datetime.timedelta(hours=HCAP):
                     os.remove(filename)
@@ -158,11 +162,13 @@ class Server():
             logger.error("Error Removing Backup")
 
         # Make the Backup
-        backup_name = f"{self.server_name}_{backup_type}_{cur_time.strftime("%Y-%m-%dT%H-%m-%s")}"
+        tstmp2 =cur_time.strftime("%Y-%m-%d-%H-%M-%S")
+        backup_name = f"{self.server_name}_{backup_type}_{tstmp2}"
         # Create a tar archive of the Minecraft server world
         make_tarfile(f"{backup_path}/{backup_name}.tar.gz", server_path)
         # Create a zip archive of the Minecraft server world
         shutil.make_archive(os.path.join(backup_path, backup_name), 'zip', server_path)
+        shutil.unpack_archive()
         # Resume Autosave
         self.server_command("save-on")
         self.server_command("say Backup complete. World now saving. ")
@@ -208,9 +214,12 @@ class BackupTimer(threading.Timer):
             logger.info("Next %s Backup time is at %s", *self.args[0], next_time)
 
 if __name__ == "__main__":
-    global server
+    # Initialize Listener (for CTRL+C interrupts)
+    signal.signal(signal.SIGINT, handler)
+
     server = Server(server_name="Server")
     time.sleep(45) # WAIT FOR IT TO START
+    FLAG = True
     # TODO: Maybe check if process is alive? (EULA, crash)
 
     logger.info('Starting backup timer')
@@ -219,7 +228,7 @@ if __name__ == "__main__":
     logger.info("Timers Initialized")
     h_timer.start()
     d_timer.start()
-    logger.info('Timer started')
+    logging.info('Timer started')
 
     # Initialize Listener (for CTRL+C interrupts)
     signal.signal(signal.SIGINT, handler)
@@ -232,7 +241,7 @@ if __name__ == "__main__":
             server.backup(backup_type="Manual")
         else:
             server.server_command(command)
-    # TODO: add handling for ctrl+c
-    # TODO: cleanly kill threads and process
-    # TODO: add text input for commands to server
-    # TODO: restructure backup style and timings
+    logging.info("Exiting the loop!")
+    h_timer.cancel()
+    d_timer.cancel()
+    logging.info("Finished!")
