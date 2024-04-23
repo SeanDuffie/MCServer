@@ -27,26 +27,27 @@ SERVER_NAME = "Server"
 RUNNING = False
 
 ### PATH SECTION ###
-default_path = os.path.dirname(__file__)
-server_path = None
-# server_path = f"{default_path}/{SERVER_NAME}/"
-while server_path is None:
-    server_path = filedialog.askdirectory(
+DEFAULT_PATH = os.path.dirname(__file__)
+SERVER_PATH = None
+# SERVER_PATH = f"{DEFAULT_PATH}/{SERVER_NAME}/"
+
+while SERVER_PATH is None:
+    SERVER_PATH = filedialog.askdirectory(
                         title="Select Server Directory",
-                        initialdir=f"{default_path}/"
+                        initialdir=f"{DEFAULT_PATH}/"
                     )
-if server_path == "":
+if SERVER_PATH == "":
     exit()
-# backup_path = None
-backup_path = f"{server_path}/../backups/{SERVER_NAME}"
-os.makedirs(name=backup_path, exist_ok=True)
-# while backup_path is None:
-#     backup_path = filedialog.askdirectory(
+# BACKUP_PATH = None
+BACKUP_PATH = f"{SERVER_PATH}/../backups/{SERVER_NAME}"
+os.makedirs(name=BACKUP_PATH, exist_ok=True)
+# while BACKUP_PATH is None:
+#     BACKUP_PATH = filedialog.askdirectory(
 #                         title="Select Backup Directory",
-#                         initialdir=f"{default_path}/"
+#                         initialdir=f"{DEFAULT_PATH}/"
 #                     )
 
-for filename in os.listdir(server_path):
+for filename in os.listdir(SERVER_PATH):
     if filename.endswith(".jar"):
         executable = f'java -Xmx{RAM * 1024}m -jar "{filename}"'
         break
@@ -54,7 +55,7 @@ for filename in os.listdir(server_path):
 exclude_file = "plugins/dynmap"
 
 ### LOGGING SECTION ###
-logname = server_path + '/' + 'MCSERVER.log'
+logname = SERVER_PATH + '/' + 'MCSERVER.log'
 logFormat.format_logs(logger_name="MCLOG", file_name=logname)
 logger = logging.getLogger("MCLOG")
 logger.info("Logname: %s", logname)
@@ -67,7 +68,7 @@ class Server():
         self.server_name = server_name
         self.backup_flag = False
 
-        os.chdir(server_path)
+        os.chdir(SERVER_PATH)
         logger.info('Starting server')
         self.process = subprocess.Popen(executable, stdin=subprocess.PIPE)
         logger.info("Server started.")
@@ -109,7 +110,7 @@ class Server():
         # Delete Expired Backups
         logger.info('Deleting last file')
         try:
-            for filename in os.listdir(server_path):
+            for filename in os.listdir(SERVER_PATH):
                 # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
                 parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
                 logger.warning("Parsed: ")
@@ -130,9 +131,9 @@ class Server():
         tstmp2 =cur_time.strftime("%Y-%m-%d-%H-%M-%S")
         backup_name = f"{self.server_name}_{backup_type}_{tstmp2}"
         # Create a tar archive of the Minecraft server world
-        make_tarfile(f"{backup_path}/{backup_name}.tar.gz", server_path)
+        make_tarfile(f"{BACKUP_PATH}/{backup_name}.tar.gz", SERVER_PATH)
         # Create a zip archive of the Minecraft server world
-        shutil.make_archive(os.path.join(backup_path, backup_name), 'zip', server_path)
+        shutil.make_archive(os.path.join(BACKUP_PATH, backup_name), 'zip', SERVER_PATH)
         # Resume Autosave
         self.server_command("save-on")
         self.server_command("say Backup complete. World now saving. ")
