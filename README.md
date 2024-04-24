@@ -1,5 +1,6 @@
-# QuickMCServer
-Just a quick setup for a minecraft server. Will allow me to save and organize some scripts
+# MCServer
+A quick setup for a minecraft server. Contains templates for both Bedrock and Java servers, as well as scripts for running and backing them up.
+Will also allow users to plug in jar files for Paper and Minecraft Forge modded servers.
 
 ## Setup
 
