@@ -12,11 +12,13 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import tarfile
 import threading
 import time
 from tkinter import filedialog
 from typing import Literal
+
 import logFormat
 
 ### CONSTANTS SECTION ###
@@ -28,31 +30,16 @@ RUNNING = False
 
 ### PATH SECTION ###
 DEFAULT_PATH = os.path.dirname(__file__)
-SERVER_PATH = None
-# SERVER_PATH = f"{DEFAULT_PATH}/{SERVER_NAME}/"
-
-while SERVER_PATH is None:
-    SERVER_PATH = filedialog.askdirectory(
-                        title="Select Server Directory",
-                        initialdir=f"{DEFAULT_PATH}/"
-                    )
-if SERVER_PATH == "":
-    exit()
+SERVER_PATH = f"{DEFAULT_PATH}/active/"
+BACKUP_PATH = f"{DEFAULT_PATH}/Worlds/{SERVER_NAME}/"
+# # If you want to put the backups in a different place, say on another hard drive, uncomment this
 # BACKUP_PATH = None
-BACKUP_PATH = f"{SERVER_PATH}/../backups/{SERVER_NAME}"
-os.makedirs(name=BACKUP_PATH, exist_ok=True)
 # while BACKUP_PATH is None:
 #     BACKUP_PATH = filedialog.askdirectory(
 #                         title="Select Backup Directory",
 #                         initialdir=f"{DEFAULT_PATH}/"
 #                     )
-
-for filename in os.listdir(SERVER_PATH):
-    if filename.endswith(".jar"):
-        executable = f'java -Xmx{RAM * 1024}m -jar "{filename}"'
-        break
-# TODO: Is this needed?
-exclude_file = "plugins/dynmap"
+os.makedirs(name=BACKUP_PATH, exist_ok=True)
 
 ### LOGGING SECTION ###
 logname = SERVER_PATH + '/' + 'MCSERVER.log'
@@ -64,14 +51,32 @@ logger.info("Logname: %s", logname)
 class Server():
     """_summary_
     """
+    process: subprocess.Popen
+
     def __init__(self, server_name: str = "Server"):
         self.server_name = server_name
         self.backup_flag = False
 
         os.chdir(SERVER_PATH)
         logger.info('Starting server')
-        self.process = subprocess.Popen(executable, stdin=subprocess.PIPE)
+
+        self.executable = ""
+        for filename in os.listdir(SERVER_PATH):
+            if filename.endswith(".jar"):
+                self.executable = f'java -Xmx{RAM * 1024}m -jar "{filename}" nogui'
+                break
+
+        if self.executable == "":
+            logger.error("No Executable Jar file detected! Please add one to 'active' directory")
+            sys.exit(1)
+
+        self.run()
+
         logger.info("Server started.")
+
+    def run(self):
+        logger.info("Running command: %s", self.executable)
+        self.process = subprocess.Popen(self.executable, stdin=subprocess.PIPE)
 
     def server_command(self, cmd: str):
         """ Sends a string from the local python script to the server shell process
@@ -83,9 +88,10 @@ class Server():
         try:
             self.process.stdin.write(str.encode(f"{cmd}\n")) #just write the command to the input stream
             self.process.stdin.flush()
-        except OSError as e:
-            logger.error(e)
-            logger.error("Error Writing to Server")
+            return True
+        except OSError:
+            logger.error("Error Writing to Server. Is it inactive?")
+            return False
 
     def backup(self, backup_type: Literal["Daily", "Hourly", "Manual"]):
         """_summary_
@@ -110,30 +116,51 @@ class Server():
         # Delete Expired Backups
         logger.info('Deleting last file')
         try:
-            for filename in os.listdir(SERVER_PATH):
-                # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
-                parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
-                logger.warning("Parsed: ")
-                print(parsed)
-                s_name = parsed[0]
-                prev_backup_type = parsed[1]
-                tstmp = datetime.datetime.fromisoformat("%Y-%m-%d-%H-%M-%s", parsed[2])
+            hourly = []
+            daily = []
 
-                if prev_backup_type == "Hourly" and (cur_time - tstmp) > datetime.timedelta(hours=HCAP):
-                    os.remove(filename)
-                elif prev_backup_type == "Daily" and (cur_time - tstmp) > datetime.timedelta(days=DCAP):
-                    os.remove(filename)
+            for filename in os.listdir(BACKUP_PATH):
+                if filename != "":
+                    # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
+                    parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
+                    s_name = parsed[0]
+                    tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
+                    prev_backup_type = parsed[2]
+
+                    if prev_backup_type == "Hourly": #  and (cur_time - tstmp) > datetime.timedelta(hours=HCAP):
+                        hourly.append(filename)
+                    elif prev_backup_type == "Daily": # and (cur_time - tstmp) > datetime.timedelta(days=DCAP):
+                        daily.append(filename)
+                        # os.remove(filename)
+
+            while len(hourly) > HCAP:
+                os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
+                # logger.debug(hourly)
+            if len(daily) > DCAP:
+                os.remove(os.path.join(BACKUP_PATH, daily.pop(0)))
+                # logger.debug(daily)
         except OSError as e:
             logger.error(e)
             logger.error("Error Removing Backup")
 
         # Make the Backup
         tstmp2 =cur_time.strftime("%Y-%m-%d-%H-%M-%S")
-        backup_name = f"{self.server_name}_{backup_type}_{tstmp2}"
-        # Create a tar archive of the Minecraft server world
-        make_tarfile(f"{BACKUP_PATH}/{backup_name}.tar.gz", SERVER_PATH)
-        # Create a zip archive of the Minecraft server world
-        shutil.make_archive(os.path.join(BACKUP_PATH, backup_name), 'zip', SERVER_PATH)
+        backup_name = f"{self.server_name}_{tstmp2}_{backup_type}"
+
+        try:
+            # Create a zip archive of the Minecraft server world
+            shutil.make_archive(
+                base_name=os.path.join(BACKUP_PATH, backup_name),
+                format='zip',
+                root_dir=SERVER_PATH,
+                # logger=logger
+            )
+        except PermissionError:
+            # import traceback
+            # logger.error(traceback.format_exc())
+            # logger.error("Permission Error!")
+            pass
+
         # Resume Autosave
         self.server_command("save-on")
         self.server_command("say Backup complete. World now saving. ")
@@ -148,6 +175,8 @@ class Server():
 
 def make_tarfile(output_filename, source_dir):
     logger.info('Making tarfile')
+    # TODO: Is this needed?
+    exclude_file = "plugins/dynmap"
 
     def filter_function(tarinfo):
         if tarinfo.name != exclude_file:
@@ -162,18 +191,19 @@ class BackupTimer(threading.Timer):
     def run(self):
         while not self.finished.wait(self.interval):
             self.function(*self.args, **self.kwargs)
-            next_time = datetime.datetime.now() + self.interval
-            logger.info("Next %s Backup time is at %s", *self.args[0], next_time)
+            next_time = datetime.datetime.now() + datetime.timedelta(seconds=self.interval)
+            logger.info("Next %s Backup time is at %s", *self.args, next_time)
 
 
 if __name__ == "__main__":
     server = Server(server_name=SERVER_NAME)
-    time.sleep(45) # WAIT FOR IT TO START
-    # TODO: Maybe check if process is alive? (EULA, crash)
+    time.sleep(5)
+    while not server.server_command("say Are you awake yet?"):
+        time.sleep(1)
 
     logger.info('Starting backup timer')
-    h_timer = BackupTimer(360, server.backup, args=("Hourly",))
-    d_timer = BackupTimer(86400, server.backup, args=("Daily",))
+    h_timer = BackupTimer(360, server.backup, args=["Hourly"])
+    d_timer = BackupTimer(86400, server.backup, args=["Daily"])
     logger.info("Timers Initialized")
     h_timer.start()
     d_timer.start()
@@ -198,9 +228,9 @@ if __name__ == "__main__":
 
     logger.warning("Stopping Server...")
     server.server_command("stop")
-    time.sleep(10)
+    while server.server_command("say Go to sleep."):
+        time.sleep(1)
     logger.info("Server Stopped!")
-    time.sleep(10)
 
     logger.warning("Killing Server Process...")
     server.process.kill()
