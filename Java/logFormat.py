@@ -2,10 +2,10 @@
     @author Sean Duffie
     @brief Handles the formatting of Logger entries
 
-
+    Custom logger that standardizes my logging process
 """
-import sys
 import logging
+import sys
 
 
 class LogFormatter(logging.Formatter):

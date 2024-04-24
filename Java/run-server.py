@@ -13,10 +13,10 @@ import os
 import shutil
 import subprocess
 import sys
-import tarfile
+# import tarfile
 import threading
 import time
-from tkinter import filedialog
+# from tkinter import filedialog
 from typing import Literal
 
 import logFormat
@@ -173,18 +173,18 @@ class Server():
         pass
 
 
-def make_tarfile(output_filename, source_dir):
-    logger.info('Making tarfile')
-    # TODO: Is this needed?
-    exclude_file = "plugins/dynmap"
+# def make_tarfile(output_filename, source_dir):
+#     logger.info('Making tarfile')
+#     # TODO: Is this needed?
+#     exclude_file = "plugins/dynmap"
 
-    def filter_function(tarinfo):
-        if tarinfo.name != exclude_file:
-            logger.info(tarinfo.name,"ADDED")
-            return tarinfo
+#     def filter_function(tarinfo):
+#         if tarinfo.name != exclude_file:
+#             logger.info(tarinfo.name,"ADDED")
+#             return tarinfo
 
-    with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.basename(source_dir),filter=filter_function)
+#     with tarfile.open(output_filename, "w:gz") as tar:
+#         tar.add(source_dir, arcname=os.path.basename(source_dir),filter=filter_function)
 
 
 class BackupTimer(threading.Timer):
