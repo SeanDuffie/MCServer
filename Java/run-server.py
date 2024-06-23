@@ -191,7 +191,9 @@ class BackupTimer(threading.Timer):
     def run(self):
         while not self.finished.wait(self.interval):
             self.function(*self.args, **self.kwargs)
-            next_time = datetime.datetime.now() + datetime.timedelta(seconds=self.interval)
+            now = datetime.datetime.now()
+            interval = datetime.timedelta(seconds=self.interval)
+            next_time = now + interval
             logger.info("Next %s Backup time is at %s", *self.args, next_time)
 
 
@@ -202,7 +204,7 @@ if __name__ == "__main__":
         time.sleep(1)
 
     logger.info('Starting backup timer')
-    h_timer = BackupTimer(360, server.backup, args=["Hourly"])
+    h_timer = BackupTimer(3600, server.backup, args=["Hourly"])
     d_timer = BackupTimer(86400, server.backup, args=["Daily"])
     logger.info("Timers Initialized")
     h_timer.start()
