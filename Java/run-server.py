@@ -22,6 +22,7 @@ from typing import Literal
 import logFormat
 
 ### CONSTANTS SECTION ###
+# TODO: Make this into an external config file that gets loaded in on startup, and updated on swap
 RAM = 8
 HCAP = 6
 DCAP = 3
@@ -133,6 +134,7 @@ class Server():
                         daily.append(filename)
                         # os.remove(filename)
 
+            # TODO: Keep track of update history in a JSON
             while len(hourly) > HCAP:
                 os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
                 # logger.debug(hourly)
@@ -214,16 +216,20 @@ if __name__ == "__main__":
     try:
         while True:
             command = input("Send a manual command: /")
-            if command == "restore":
+            if command.startswith("restore"):
+                # TODO: restore from a certain backup
                 pass
-            if command == "backup":
+            if command.startswith("backup"):
                 server.backup(backup_type="Manual")
+            if command.startswith("swap"):
+                # TODO: Take arguement for new server name
+                pass
             else:
                 server.server_command(command)
     except KeyboardInterrupt:
         logger.info("User manually initiated shutdown using \"CTRL+C\"...")
 
-    logger.info("Killing Timers...")
+    logger.warning("Killing Timers...")
     h_timer.cancel()
     d_timer.cancel()
     logger.info("Timers Killed!")
