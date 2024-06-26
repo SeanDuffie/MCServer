@@ -204,8 +204,11 @@ class BackupTimer(threading.Timer):
 if __name__ == "__main__":
     server = Server(server_name=settings['SERVER_NAME'])
     time.sleep(5)
-    while not server.server_command("say Are you awake yet?"):
+    c = 10
+    while not server.server_command("say Are you awake yet?") and c > 0:
         time.sleep(1)
+        c -= 1
+        assert c > 0
 
     logger.info('Starting backup timer')
     h_timer = BackupTimer(3600, server.backup, args=["Hourly"])
@@ -217,6 +220,7 @@ if __name__ == "__main__":
 
     try:
         while True:
+            time.sleep(1)
             command = input("Send a manual command: /")
             if command.startswith("restore"):
                 # TODO: restore from a certain backup
