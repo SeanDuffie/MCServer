@@ -23,16 +23,18 @@ import logFormat
 
 ### CONSTANTS SECTION ###
 # TODO: Make this into an external config file that gets loaded in on startup, and updated on swap
-RAM = 8
-HCAP = 6
-DCAP = 3
-SERVER_NAME = "Server"
-RUNNING = False
+settings = {
+    "RAM": 8,
+    "HCAP": 6,
+    "DCAP": 3,
+    "SERVER_NAME": "Server",
+    "RUNNING": False,
+}
 
 ### PATH SECTION ###
 DEFAULT_PATH = os.path.dirname(__file__)
-SERVER_PATH = f"{DEFAULT_PATH}/active/"
-BACKUP_PATH = f"{DEFAULT_PATH}/Worlds/{SERVER_NAME}/"
+ACTIVE_PATH = f"{DEFAULT_PATH}/active/"
+BACKUP_PATH = f"{DEFAULT_PATH}/Worlds/{settings['SERVER_NAME']}/"
 # # If you want to put the backups in a different place, say on another hard drive, uncomment this
 # BACKUP_PATH = None
 # while BACKUP_PATH is None:
@@ -43,7 +45,7 @@ BACKUP_PATH = f"{DEFAULT_PATH}/Worlds/{SERVER_NAME}/"
 os.makedirs(name=BACKUP_PATH, exist_ok=True)
 
 ### LOGGING SECTION ###
-logname = SERVER_PATH + '/' + 'MCSERVER.log'
+logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
 logFormat.format_logs(logger_name="MCLOG", file_name=logname)
 logger = logging.getLogger("MCLOG")
 logger.info("Logname: %s", logname)
@@ -58,13 +60,13 @@ class Server():
         self.server_name = server_name
         self.backup_flag = False
 
-        os.chdir(SERVER_PATH)
+        os.chdir(ACTIVE_PATH)
         logger.info('Starting server')
 
         self.executable = ""
-        for filename in os.listdir(SERVER_PATH):
+        for filename in os.listdir(ACTIVE_PATH):
             if filename.endswith(".jar"):
-                self.executable = f'java -Xmx{RAM * 1024}m -jar "{filename}" nogui'
+                self.executable = f'java -Xmx{settings['RAM'] * 1024}m -jar "{filename}" nogui'
                 break
 
         if self.executable == "":
@@ -128,17 +130,17 @@ class Server():
                     tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
                     prev_backup_type = parsed[2]
 
-                    if prev_backup_type == "Hourly": #  and (cur_time - tstmp) > datetime.timedelta(hours=HCAP):
+                    if prev_backup_type == "Hourly": #  and (cur_time - tstmp) > datetime.timedelta(hours=settings['HCAP']):
                         hourly.append(filename)
-                    elif prev_backup_type == "Daily": # and (cur_time - tstmp) > datetime.timedelta(days=DCAP):
+                    elif prev_backup_type == "Daily": # and (cur_time - tstmp) > datetime.timedelta(days=settings['DCAP']):
                         daily.append(filename)
                         # os.remove(filename)
 
             # TODO: Keep track of update history in a JSON
-            while len(hourly) > HCAP:
+            while len(hourly) > settings['HCAP']:
                 os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
                 # logger.debug(hourly)
-            if len(daily) > DCAP:
+            if len(daily) > settings['DCAP']:
                 os.remove(os.path.join(BACKUP_PATH, daily.pop(0)))
                 # logger.debug(daily)
         except OSError as e:
@@ -154,7 +156,7 @@ class Server():
             shutil.make_archive(
                 base_name=os.path.join(BACKUP_PATH, backup_name),
                 format='zip',
-                root_dir=SERVER_PATH,
+                root_dir=ACTIVE_PATH,
                 # logger=logger
             )
         except PermissionError:
@@ -200,7 +202,7 @@ class BackupTimer(threading.Timer):
 
 
 if __name__ == "__main__":
-    server = Server(server_name=SERVER_NAME)
+    server = Server(server_name=settings['SERVER_NAME'])
     time.sleep(5)
     while not server.server_command("say Are you awake yet?"):
         time.sleep(1)
@@ -219,10 +221,28 @@ if __name__ == "__main__":
             if command.startswith("restore"):
                 # TODO: restore from a certain backup
                 pass
-            if command.startswith("backup"):
+            elif command.startswith("backup"):
                 server.backup(backup_type="Manual")
-            if command.startswith("swap"):
+            elif command.startswith("swap"):
                 # TODO: Take arguement for new server name
+                pass
+            elif command.startswith("hcap"):
+                # TODO: Modify the limit of hourly backups
+                pass
+            elif command.startswith("dcap"):
+                # TODO: Modify the limit of daily backups
+                pass
+            elif command.startswith("ram"):
+                # TODO: Modify the value of dedicated ram
+                # TODO: Restart the server
+                server.server_command("restart")
+                pass
+            elif command.startswith("new"):
+                # TODO: Backup the most recent server
+                server.backup(backup_type="Manual")
+                # TODO: Get a new name
+                # TODO: Get a new jar type
+                # TODO: If modded, load up a list of mods
                 pass
             else:
                 server.server_command(command)
