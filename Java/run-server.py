@@ -27,7 +27,7 @@ settings = {
     "RAM": 8,
     "HCAP": 6,
     "DCAP": 3,
-    "SERVER_NAME": "Server",
+    "SERVER_NAME": "Reunion",
     "RUNNING": False,
 }
 
