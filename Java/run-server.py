@@ -229,7 +229,8 @@ class BackupTimer(threading.Timer):
         start_time = datetime.datetime.now()
         interval = datetime.timedelta(seconds=self.interval)
         next_time = self.next_time(start_time, interval)
-        prev_time = next_time - interval
+        prev_time = start_time
+        logger.warning("Wait amount: %s", (next_time - prev_time).total_seconds())
 
 
         while not self.finished.wait((next_time - prev_time).total_seconds()):
@@ -237,7 +238,6 @@ class BackupTimer(threading.Timer):
             next_time = self.next_time(prev_time, interval)
 
             self.function(*self.args, **self.kwargs)
-            logger.info("Next %s Backup time is at %s", *self.args, next_time)
         logger.info("BackupTimer finished.")
 
 def launch():
