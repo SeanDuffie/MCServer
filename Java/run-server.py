@@ -279,6 +279,9 @@ if __name__ == "__main__":
             elif command.startswith("dcap"):
                 # TODO: Modify the limit of daily backups
                 pass
+            elif command.startswith("restart"):
+                kill(server, h_timer, d_timer)
+                server, h_timer, d_timer = launch()
             elif command.startswith("ram"):
                 # TODO: Modify the value of dedicated ram
                 # Restart the server
