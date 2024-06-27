@@ -192,14 +192,53 @@ class Server():
 
 
 class BackupTimer(threading.Timer):
-    def run(self):
-        while not self.finished.wait(self.interval):
-            self.function(*self.args, **self.kwargs)
-            now = datetime.datetime.now()
-            interval = datetime.timedelta(seconds=self.interval)
-            next_time = now + interval
-            logger.info("Next %s Backup time is at %s", *self.args, next_time)
+    def next_time(self, prev: datetime.datetime, interval: datetime.timedelta):
+        if interval > datetime.timedelta(seconds=86399):
+            # If the program is started in the morning between 12AM and 6AM, round next time down
+            if prev.hour < 6:
+                day = prev.day
+            # Otherwise, round next time up
+            else:
+                day = prev.day + interval.days
 
+            # Always back up at the next 6AM occurance.
+            nxt = datetime.datetime(
+                year=prev.year,
+                month=prev.month,
+                day=day,
+                hour=6,
+                minute=0,
+                second=0,
+                microsecond=0
+            )
+        else:
+            # Always back up at the top of the next hour
+            nxt = datetime.datetime(
+                year=prev.year,
+                month=prev.month,
+                day=prev.day + interval.days,
+                hour=prev.hour + (interval.seconds // 3600),
+                minute=0,
+                second=0,
+                microsecond=0
+            )
+        logger.info("Next %s Backup time is at %s (currently %s)", *self.args, nxt, datetime.datetime.now())
+        return nxt
+
+    def run(self):
+        start_time = datetime.datetime.now()
+        interval = datetime.timedelta(seconds=self.interval)
+        next_time = self.next_time(start_time, interval)
+        prev_time = next_time - interval
+
+
+        while not self.finished.wait((next_time - prev_time).total_seconds()):
+            prev_time = next_time
+            next_time = self.next_time(prev_time, interval)
+
+            self.function(*self.args, **self.kwargs)
+            logger.info("Next %s Backup time is at %s", *self.args, next_time)
+        logger.info("BackupTimer finished.")
 
 def launch():
     """ Launches the server and some parallel tasks to backup at different intervals.
