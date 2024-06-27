@@ -201,22 +201,41 @@ class BackupTimer(threading.Timer):
             logger.info("Next %s Backup time is at %s", *self.args, next_time)
 
 
-if __name__ == "__main__":
-    server = Server(server_name=settings['SERVER_NAME'])
-    time.sleep(5)
+def launch():
+    """ Launches the server and some parallel tasks to backup at different intervals.
+
+    I split this off into it's own function so I can reuse it with different commands.
+
+    Returns:
+        Server: Server process/object to interface with
+        BackupTimer: Hourly backup timer
+        BackupTimer: Daily backup timer
+    """
+    # Launch the server
+    svr = Server(server_name=settings['SERVER_NAME'])
+
+    # Wait for the server to be active. Until it is, it will reject any attempted messages
     c = 10
-    while not server.server_command("say Are you awake yet?") and c > 0:
+    time.sleep(5)
+    while not svr.server_command("say Are you awake yet?"):
         time.sleep(1)
         c -= 1
         assert c > 0
 
+    # Start the Backup Timers
     logger.info('Starting backup timer')
-    h_timer = BackupTimer(3600, server.backup, args=["Hourly"])
-    d_timer = BackupTimer(86400, server.backup, args=["Daily"])
+    h_tmr = BackupTimer(3600, svr.backup, args=["Hourly"])
+    d_tmr = BackupTimer(86400, svr.backup, args=["Daily"])
     logger.info("Timers Initialized")
-    h_timer.start()
-    d_timer.start()
+    h_tmr.start()
+    d_tmr.start()
     logger.info('Timer started')
+
+    return svr, h_tmr, d_tmr
+
+
+if __name__ == "__main__":
+    server, h_timer, d_timer = launch()
 
     try:
         while True:
@@ -240,14 +259,12 @@ if __name__ == "__main__":
                 # TODO: Modify the value of dedicated ram
                 # TODO: Restart the server
                 server.server_command("restart")
-                pass
             elif command.startswith("new"):
                 # TODO: Backup the most recent server
                 server.backup(backup_type="Manual")
                 # TODO: Get a new name
                 # TODO: Get a new jar type
                 # TODO: If modded, load up a list of mods
-                pass
             else:
                 server.server_command(command)
     except KeyboardInterrupt:
