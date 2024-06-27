@@ -233,6 +233,30 @@ def launch():
 
     return svr, h_tmr, d_tmr
 
+def kill(svr: Server, h_tmr: BackupTimer, d_tmr: BackupTimer):
+    """ Kills the server process and all backup timers cleanly
+
+    I split this off into it's own function so I can reuse it with different commands
+
+    Args:
+        svr (Server): Server process
+        h_tmr (BackupTimer): Hourly backup process
+        d_tmr (BackupTimer): Daily backup process
+    """
+    logger.warning("Killing Timers...")
+    h_tmr.cancel()
+    d_tmr.cancel()
+    logger.info("Timers Killed!")
+
+    logger.warning("Stopping Server...")
+    svr.server_command("stop")
+    while svr.server_command("say Go to sleep."):
+        time.sleep(1)
+    logger.info("Server Stopped!")
+
+    logger.warning("Killing Server Process...")
+    svr.process.kill()
+    logger.warning("Done!")
 
 if __name__ == "__main__":
     server, h_timer, d_timer = launch()
@@ -257,8 +281,9 @@ if __name__ == "__main__":
                 pass
             elif command.startswith("ram"):
                 # TODO: Modify the value of dedicated ram
-                # TODO: Restart the server
-                server.server_command("restart")
+                # Restart the server
+                kill(server, h_timer, d_timer)
+                server, h_timer, d_timer = launch()
             elif command.startswith("new"):
                 # TODO: Backup the most recent server
                 server.backup(backup_type="Manual")
@@ -270,17 +295,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         logger.info("User manually initiated shutdown using \"CTRL+C\"...")
 
-    logger.warning("Killing Timers...")
-    h_timer.cancel()
-    d_timer.cancel()
-    logger.info("Timers Killed!")
-
-    logger.warning("Stopping Server...")
-    server.server_command("stop")
-    while server.server_command("say Go to sleep."):
-        time.sleep(1)
-    logger.info("Server Stopped!")
-
-    logger.warning("Killing Server Process...")
-    server.process.kill()
-    logger.warning("Done!")
+    kill(server, h_timer, d_timer)
