@@ -230,7 +230,7 @@ class BackupTimer(threading.Timer):
         interval = datetime.timedelta(seconds=self.interval)
         next_time = self.next_time(start_time, interval)
         prev_time = start_time
-        logger.warning("Wait amount: %s", (next_time - prev_time).total_seconds())
+        logger.warning("Seconds until First Backup: %s", (next_time - prev_time).total_seconds())
 
 
         while not self.finished.wait((next_time - prev_time).total_seconds()):
