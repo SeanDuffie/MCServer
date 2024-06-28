@@ -338,6 +338,13 @@ if __name__ == "__main__":
                 # TODO: Get a new name
                 # TODO: Get a new jar type
                 # TODO: If modded, load up a list of mods
+            elif command.startswith("get"):
+                parsed = command.split(" ")
+                print(parsed)
+                if parsed[1] == "dtime":
+                    logger.info("Next Daily Backup is %s from now", d_timer.get_remaining())
+                elif parsed[1] == "htime":
+                    logger.info("Next Hourly Backup is %s from now", h_timer.get_remaining())
             else:
                 server.server_command(command)
     except KeyboardInterrupt:
