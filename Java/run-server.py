@@ -192,6 +192,16 @@ class Server():
 
 
 class BackupTimer(threading.Timer):
+    def __init__(self, interval, function, args=None, kwargs=None):
+        threading.Timer.__init__(self, interval, function, args, kwargs)
+
+        self.start_time = datetime.datetime.now()
+        self.tprev = self.start_time
+        self.invl = datetime.timedelta(seconds=self.interval)
+        self.tnext = self.next_time(self.start_time, self.invl)
+
+        logger.warning("Seconds until First %s Backup: %s", *self.args, (self.tnext - self.tprev).total_seconds())
+
     def next_time(self, prev: datetime.datetime, interval: datetime.timedelta):
         if interval > datetime.timedelta(seconds=86399):
             # If the program is started in the morning between 12AM and 6AM, round next time down
@@ -225,17 +235,13 @@ class BackupTimer(threading.Timer):
         logger.info("Next %s Backup time is at %s (currently %s)", *self.args, nxt, datetime.datetime.now())
         return nxt
 
+    def get_remaining(self):
+        return self.tnext - self.tprev
+
     def run(self):
-        start_time = datetime.datetime.now()
-        interval = datetime.timedelta(seconds=self.interval)
-        next_time = self.next_time(start_time, interval)
-        prev_time = start_time
-        logger.warning("Seconds until First Backup: %s", (next_time - prev_time).total_seconds())
-
-
-        while not self.finished.wait((next_time - prev_time).total_seconds()):
-            prev_time = next_time
-            next_time = self.next_time(prev_time, interval)
+        while not self.finished.wait((self.tnext - self.tprev).total_seconds()):
+            self.tprev = self.tnext
+            self.tnext = self.next_time(self.tprev, self.invl)
 
             self.function(*self.args, **self.kwargs)
         logger.info("BackupTimer finished.")
