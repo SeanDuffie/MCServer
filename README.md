@@ -10,21 +10,38 @@ Bedrock, on the other hand, behaves differently, as it uses a different executab
 
 ### Vanilla (Java)
 
-TODO
-
 Plain old Vanilla Minecraft is by far the easiest to set up. Just pick a version, throw in the jar file, and launch the "run-server.py" script. The server will automatically install the necessary files, and then prompt you to accept the EULA. Once the EULA is accepted the script can be run again and the server will be accessible to anyone on the local network (using the local IP of the host device). Once the Port Forwarding is set up properly it will be available externally through the external IP of your network.
 
 ### Paper
 
-TODO
-
 PaperMC is a modified minecraft server that allows the server host to use various plugins instead of mods. These plugins are usually lighter weight, and range from simple server utilities to full on mods. The main benefit is that any mods are server side, and clients don't have to worry about downloading, updating, or configuring any modpacks to join the world. The downside is that any plugins are severely limited in potential due to being server side only, but the performance benefits of this type of server are perfect for something hosted on a Raspberry Pi.
+
+#### Plugins that Matter
+
+- EssentialsX
+    - Homes
+    - Warps
+    - Private Messages
+    - Teleports
+    - Nicknames
+    - Kicks, temp bans, mutes, jails
+    - Economy? (I was never able to get this working)
+- DiscordSRV
+    - Join notifications
+    - Acheivement notifications
+    - Sharing discord chat with game chat and/or visa versa
+    - Proximity chat? (I was never able to get this working, but it would be cool)
+    - [ ] TODO: Post an invite link to the discord when a new person joins, (if not already in)
+    - [ ] TODO: Assign Discord roles for different stats (like bumper jumper)
+    - [ ] TODO: Check role from the discord server itself to ensure that they're allowed
 
 ### Forge
 
-TODO
-
 Minecraft Forge is the most common client for mods and modpacks. It provides some additional challenges for hosting, however it has some of the most fun modding capabilities available to it.
+
+#### Administrative Mods
+
+#### 
 
 ### Bedrock
 
