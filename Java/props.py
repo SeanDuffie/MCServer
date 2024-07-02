@@ -2,6 +2,7 @@
 """
 import logging
 import os
+import datetime
 
 import logFormat
 import configparser
@@ -22,17 +23,17 @@ gitignore = [
     '!.gitignore\n'
 ]
 
-eula = {
-    #By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).
-    #Wed Jun 26 11:09:07 EDT 2024
-    'eula': 'TRUE'
-}
+eula = [
+    "#By changing the setting below to TRUE you are indicating your agreement to our EULA (https://aka.ms/MinecraftEULA).\n",
+    datetime.datetime.now().astimezone().strftime("%a %b %d %H:%M:%S %Z %Y\n"),
+    "eula=TRUE\n"
+]
 
 config = configparser.ConfigParser()
 
-def write_gitignore():
-    with open(file=f"{ACTIVE_PATH}.gitignore", mode='w+', encoding='utf_8') as f:
-        f.writelines(gitignore)
+def write_file(it, name):
+    with open(file=f"{ACTIVE_PATH}{name}", mode='w+', encoding='utf_8') as f:
+        f.writelines(it)
 
 
 def read_properties(path: str):
@@ -58,4 +59,5 @@ def read_properties(path: str):
 
 if __name__ == "__main__":
     # read_properties(f"{ACTIVE_PATH}server.properties")
-    write_gitignore()
+    write_file(gitignore, '.gitignore')
+    write_file(eula, 'eula.txt')
