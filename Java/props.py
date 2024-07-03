@@ -85,9 +85,9 @@ if __name__ == "__main__":
     set_properties(cd)
 
     config_ls = [f"{k}={v}\n" for k, v in config_dict.items()]
-    tstmp = datetime.datetime.now().astimezone().strftime("#%a %b %d %H:%M:%S %Z %Y\n")
-    config_ls.insert(0, tstmp)
-    desc = "#Minecraft server properties\n"
-    config_ls.insert(0, desc)
+    TSTMP = datetime.datetime.now().astimezone().strftime("#%a %b %d %H:%M:%S %Z %Y\n")
+    config_ls.insert(0, TSTMP)
+    DESC = "#Minecraft server properties\n"
+    config_ls.insert(0, DESC)
 
     write_file(config_ls, "test-server.properties")
