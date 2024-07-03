@@ -66,10 +66,6 @@ def set_properties(config_dict):
     # simulation-distance: Maximum distance that client can update server or ticks can occur
     # view-distance: world data sent to the client (server-side viewing distance). Default 10
     # white-list: Enables whitelist (Not enforced yet, but can be added to)
-    logger.info(config_dict)
-    desc = "#Minecraft server properties\n"
-    tstmp = datetime.datetime.now().astimezone().strftime("#%a %b %d %H:%M:%S %Z %Y\n")
-
     config_dict['difficulty'] = "hard"
     config_dict['enforce-secure-profile'] = "true"
     config_dict['enforce-whitelist'] = "false"
@@ -77,8 +73,6 @@ def set_properties(config_dict):
     config_dict['motd'] = "Welcome to the Reunion server!"
     config_dict['previews-chat'] = "true"
     config_dict['white-list'] = "true"
-    logger.info("New Configs")
-    logger.info(config_dict)
 
 
 if __name__ == "__main__":
@@ -89,3 +83,11 @@ if __name__ == "__main__":
 
     cd = read_properties(f"{ACTIVE_PATH}server.properties")
     set_properties(cd)
+
+    config_ls = [f"{k}={v}\n" for k, v in config_dict.items()]
+    tstmp = datetime.datetime.now().astimezone().strftime("#%a %b %d %H:%M:%S %Z %Y\n")
+    config_ls.insert(0, tstmp)
+    desc = "#Minecraft server properties\n"
+    config_ls.insert(0, desc)
+
+    write_file(config_ls, "test-server.properties")
