@@ -15,7 +15,7 @@ ACTIVE_PATH = f"{DEFAULT_PATH}/active/"
 logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
 logFormat.format_logs(logger_name="MCLOG")
 logger = logging.getLogger("MCLOG")
-logger.info("Logname: %s", logname)
+# logger.info("Logname: %s", logname)
 
 gitignore = [
     '*\n',
@@ -30,6 +30,7 @@ eula = [
 ]
 
 config = configparser.ConfigParser()
+config_dict = {}
 
 def write_file(it, name):
     with open(file=f"{ACTIVE_PATH}{name}", mode='w+', encoding='utf_8') as f:
@@ -37,18 +38,20 @@ def write_file(it, name):
 
 
 def read_properties(path: str):
-    logger.info("Reading properties")
     if not os.path.exists(path):
         logger.error("File doesn't exist!")
 
     with open(file=path, mode='r', encoding='utf_8') as f:
         config.read_string('[config]\n' + f.read())
 
-    logger.info(f.name)
-    for k, v in config['config'].items():
-        print(k, v)
+    # logger.info(f.name)
+    for key, value in config['config'].items():
+        # print(key, value)
+         config_dict[key] = value
 
-def set_properties():
+    return config_dict
+
+def set_properties(config_dict):
     # difficulty: Default Game Difficulty. Easy by default, but I prefer Hard.
     # enforce-secure-profile: Enables chat reporting. This is stupid and dumb.
     # enforce-whitelist: Kicks all players not present on the whitelist
@@ -63,7 +66,20 @@ def set_properties():
     # simulation-distance: Maximum distance that client can update server or ticks can occur
     # view-distance: world data sent to the client (server-side viewing distance). Default 10
     # white-list: Enables whitelist (Not enforced yet, but can be added to)
-    pass
+    logger.info(config_dict)
+    desc = "#Minecraft server properties\n"
+    tstmp = datetime.datetime.now().astimezone().strftime("#%a %b %d %H:%M:%S %Z %Y\n")
+
+    config_dict['difficulty'] = "hard"
+    config_dict['enforce-secure-profile'] = "true"
+    config_dict['enforce-whitelist'] = "false"
+    config_dict['difficulty'] = "hard"
+    config_dict['motd'] = "Welcome to the Reunion server!"
+    config_dict['previews-chat'] = "true"
+    config_dict['white-list'] = "true"
+    logger.info("New Configs")
+    logger.info(config_dict)
+
 
 if __name__ == "__main__":
     if not os.path.exists(f"{ACTIVE_PATH}.gitignore"):
@@ -71,4 +87,5 @@ if __name__ == "__main__":
     if not os.path.exists(f"{ACTIVE_PATH}eula.txt"):
         write_file(eula, 'eula.txt')
 
-    read_properties(f"{ACTIVE_PATH}server.properties")
+    cd = read_properties(f"{ACTIVE_PATH}server.properties")
+    set_properties(cd)
