@@ -211,7 +211,7 @@ class BackupTimer(threading.Timer):
             else:
                 day = prev.day + interval.days
 
-            # Always back up at the next 6AM occurance.
+            # Always back up at the next 6AM occurrence.
             nxt = datetime.datetime(
                 year=prev.year,
                 month=prev.month,
@@ -227,7 +227,7 @@ class BackupTimer(threading.Timer):
                 year=prev.year,
                 month=prev.month,
                 day=prev.day + interval.days,
-                hour=prev.hour + (interval.seconds // 3600),
+                hour=(prev.hour + (interval.seconds // 3600)) % 24,
                 minute=0,
                 second=0,
                 microsecond=0
