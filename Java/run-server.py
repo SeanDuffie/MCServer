@@ -66,7 +66,7 @@ class Server():
         self.executable = ""
         for filename in os.listdir(ACTIVE_PATH):
             if filename.endswith(".jar"):
-                self.executable = f'java -Xmx{settings['RAM'] * 1024}m -jar "{filename}" nogui'
+                self.executable = f"java -Xmx{settings['RAM'] * 1024}m -jar \"{filename}\" nogui"
                 break
 
         if self.executable == "":
