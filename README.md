@@ -21,6 +21,7 @@ PaperMC is a modified minecraft server that allows the server host to use variou
 - Homes
 - Warps
 - Private Messages
+- AFK Status Messages
 - Teleports
 - Nicknames
 - Kicks, temp bans, mutes, jails
@@ -47,9 +48,7 @@ DiscordSRV is a PaperMC plugin that allows hosts to connect to a discord server
     By default it does nothing and can be quite advanced.
 2. config.yml - This is the important file for setting up basic functionality of the bot.
     1. BotToken: Paste the "Application ID" from the Discord Bot you created earlier
-    2. Channels: This allows you to filter which messages go to which channels, by default it picks the top one.
-    This creates a dictionary/json structure that specifies {Type of Message}:{Channel ID}, some examples of
-    categories are shown below:
+    2. Channels: This allows you to filter which messages go to which channels, by default it picks the top one. This creates a dictionary/json structure that specifies {Type of Message}:{Channel ID}, some examples of categories are shown below:
         1. global - player chat messages
         2. status - server start/stop
         3. awards - player achievements
