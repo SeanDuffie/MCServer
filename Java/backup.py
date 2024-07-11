@@ -1,7 +1,26 @@
+""" @file backup.py
+    @author Sean Duffie
+    @brief Functions that are responsible for wrapping the backup and restore functionality.
+"""
+import logging
 import os
 import shutil
+import zipfile
 
-def backup():
+import logFormat
+
+### PATH SECTION ###
+DEFAULT_PATH = os.path.dirname(__file__)
+ACTIVE_PATH = f"{DEFAULT_PATH}/project/"
+BACKUP_PATH = f"{DEFAULT_PATH}/backups/"
+
+### LOGGING SECTION ###
+logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
+logFormat.format_logs(logger_name="MCLOG", file_name=logname)
+logger = logging.getLogger("MCLOG")
+logger.info("Logname: %s", logname)
+
+def sh_backup():
     try:
         # Create a zip archive of the Minecraft server world
         shutil.make_archive(
@@ -16,13 +35,8 @@ def backup():
         # logger.error("Permission Error!")
         pass
 
-#General script by github.com/tushar2704, please adjust according to you requirements.
-
-import os
-import zipfile
-
-def zipper(target_dir: str, zip_filename: str):
-    """_summary_
+def backup(target_dir: str, zip_filename: str):
+    """ Compresses the active directory into a zip archive that can be accessed later.
 
     Args:
         target_dir (str): Path of directory containing the files to compress
@@ -44,7 +58,7 @@ def zipper(target_dir: str, zip_filename: str):
             # Add each file to the ZIP archive
             zip_file.write(file_path, filename)
 
-    print(f"Files compressed into {zip_filename}")
+    logger.info("Files compressed into: %s", zip_filename)
 
     return True
 
@@ -66,6 +80,6 @@ def restore(zip_filename: str, target_dir: str):
     with zipfile.ZipFile(zip_filename, 'r') as zip_file:
         zip_file.extractall(target_dir)
 
-    logger.info
+    logger.info("Files extracted from: %s", zip_filename)
 
     return True
