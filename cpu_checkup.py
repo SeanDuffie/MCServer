@@ -5,13 +5,16 @@ import time
 import logging
 
 # Configure logging
-logging.basicConfig(filename='system_monitor.log', level=logging.INFO,
-                    format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 # Monitoring interval in seconds
 interval = 60
 
-while True:
+def get_usage():
     # Get CPU usage
     cpu_percent = psutil.cpu_percent()
 
@@ -23,5 +26,12 @@ while True:
     logging.info(f"CPU Usage: {cpu_percent}%")
     logging.info(f"Memory Usage: {memory_percent}%")
 
-    # Wait for the specified interval
-    time.sleep(interval)
+
+if __name__ == "__main__":
+    get_usage()
+
+    # while True:
+    #     get_usage()
+
+    #     # Wait for the specified interval
+    #     time.sleep(interval)
