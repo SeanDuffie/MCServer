@@ -55,7 +55,7 @@ def backup(zip_filename: str, target_dir: str = None, zip_path: str = None):
 
     return True
 
-def restore(zip_filename: str, target_dir: str):
+def restore(zip_filename: str, target_dir: str = None, zip_path: str = None):
     """ Restores a zip archive to the working directory.
 
     Args:
@@ -65,14 +65,21 @@ def restore(zip_filename: str, target_dir: str):
     Returns:
         bool: Success?
     """
+    if target_dir is None:
+        target_dir = ACTIVE_PATH
+    if zip_path is None:
+        zip_path = f"{BACKUP_PATH}/{zip_filename}.zip"
+
     # Validity Checks
+    print(f"{target_dir=}")
     assert os.path.isdir(target_dir)
-    assert zip_filename.endswith('.zip')
+    print(f"{zip_path=}")
+    assert os.path.exists(zip_path)
 
     # Open Zipfile for reading
-    with zipfile.ZipFile(zip_filename, 'r') as zip_file:
+    with zipfile.ZipFile(zip_path, 'r') as zip_file:
         zip_file.extractall(target_dir)
 
-    logger.info("Files extracted from: %s", zip_filename)
+    logger.info("Files extracted from: (%s) to (%s)", zip_path, target_dir)
 
     return True
