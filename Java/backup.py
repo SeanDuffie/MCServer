@@ -4,7 +4,6 @@
 """
 import logging
 import os
-import shutil
 import zipfile
 
 import logFormat
@@ -20,22 +19,7 @@ logFormat.format_logs(logger_name="MCLOG", file_name=logname)
 logger = logging.getLogger("MCLOG")
 logger.info("Logname: %s", logname)
 
-def sh_backup():
-    try:
-        # Create a zip archive of the Minecraft server world
-        shutil.make_archive(
-            base_name=os.path.join(BACKUP_PATH, backup_name),
-            format='zip',
-            root_dir=ACTIVE_PATH,
-            # logger=logger
-        )
-    except PermissionError:
-        # import traceback
-        # logger.error(traceback.format_exc())
-        # logger.error("Permission Error!")
-        pass
-
-def backup(target_dir: str, zip_filename: str):
+def backup(zip_filename: str, target_dir: str = None, zip_path: str = None):
     """ Compresses the active directory into a zip archive that can be accessed later.
 
     Args:
@@ -45,18 +29,27 @@ def backup(target_dir: str, zip_filename: str):
     Returns:
         bool: Success?
     """
+    if target_dir is None:
+        target_dir = ACTIVE_PATH
+    if zip_path is None:
+        zip_path = f"{BACKUP_PATH}/{zip_filename}.zip"
+
     # Validity Checks
     assert os.path.isdir(target_dir)
-    assert zip_filename.endswith('.zip')
+    assert os.path.isdir(zip_path)
 
     # Open Zipfile for writing
-    with zipfile.ZipFile(zip_filename, 'w') as zip_file:
+    with zipfile.ZipFile(zip_path, 'w') as zip_file:
         # Iterate over the files in the directory
-        for filename in os.listdir(target_dir):
-            file_path = os.path.join(target_dir, filename)
+        for dirpath, _, filenames in os.walk(target_dir):
+            for filename in filenames:
+                # Acquire the source path
+                src_path = os.path.join(dirpath, filename)
+                # Determine the output path
+                local_path = src_path.replace(ACTIVE_PATH, "")
 
-            # Add each file to the ZIP archive
-            zip_file.write(file_path, filename)
+                # Add each file to the ZIP archive
+                zip_file.write(src_path, local_path)
 
     logger.info("Files compressed into: %s", zip_filename)
 
