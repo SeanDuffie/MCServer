@@ -78,6 +78,12 @@ class Server():
         logger.info("Server started.")
 
     def run(self):
+        """ Called when the server is launched.
+
+            Launches and attaches the server process to self.process variable.
+            This is called in __init__ and must finish before any interactions with the server can
+            occur.
+        """
         logger.info("Running command: %s", self.executable)
         self.process = subprocess.Popen(self.executable, stdin=subprocess.PIPE)
 
@@ -89,7 +95,8 @@ class Server():
         """
         logger.info("Writing server command: %s", cmd)
         try:
-            self.process.stdin.write(str.encode(f"{cmd}\n")) #just write the command to the input stream
+            # Write command to the input stream
+            self.process.stdin.write(str.encode(f"{cmd}\n"))
             self.process.stdin.flush()
             return True
         except OSError:
@@ -175,20 +182,6 @@ class Server():
     def restore_backup(self, name: str):
         # shutil.unpack_archive()
         pass
-
-
-# def make_tarfile(output_filename, source_dir):
-#     logger.info('Making tarfile')
-#     # TODO: Is this needed?
-#     exclude_file = "plugins/dynmap"
-
-#     def filter_function(tarinfo):
-#         if tarinfo.name != exclude_file:
-#             logger.info(tarinfo.name,"ADDED")
-#             return tarinfo
-
-#     with tarfile.open(output_filename, "w:gz") as tar:
-#         tar.add(source_dir, arcname=os.path.basename(source_dir),filter=filter_function)
 
 
 class BackupTimer(threading.Timer):
