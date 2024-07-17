@@ -32,6 +32,10 @@ eula = [
 config = configparser.ConfigParser()
 config_dict = {}
 
+class Properties():
+    def __init__(self, world_path: str):
+        pass
+
 def write_file(it, name):
     with open(file=f"{ACTIVE_PATH}{name}", mode='w+', encoding='utf_8') as f:
         f.writelines(it)
