@@ -8,14 +8,11 @@ import os
 import logFormat
 
 ### PATH SECTION ###
-DEFAULT_PATH = os.path.dirname(__file__)
-ACTIVE_PATH = f"{DEFAULT_PATH}/active/"
+DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "Worlds")
 
 ### LOGGING SECTION ###
-logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
 logFormat.format_logs(logger_name="MCLOG")
 logger = logging.getLogger("MCLOG")
-# logger.info("Logname: %s", logname)
 
 gitignore = [
     '*\n',
@@ -30,68 +27,101 @@ eula = [
 ]
 
 config = configparser.ConfigParser()
-config_dict = {}
 
 class Properties():
+    """_summary_
+    """
     def __init__(self, world_path: str):
-        pass
+        self.world_path = world_path
+        # Write the Eula
+        # if not os.path.exists(f"{self.world_path}.gitignore"):
+        #     self.write_file(gitignore, '.gitignore')
+        if not os.path.exists(self.world_path):
+            os.mkdir(self.world_path)
+        if not os.path.exists(os.path.join(self.world_path, "eula.txt")):
+            self.write_file(eula, 'eula.txt')
 
-def write_file(it, name):
-    with open(file=f"{ACTIVE_PATH}{name}", mode='w+', encoding='utf_8') as f:
-        f.writelines(it)
+        # Launch the application
+        
 
+        # Edit server.properties
+        self.config_dict = self.read_properties(world_path)
+        self.set_properties()
 
-def read_properties(path: str):
-    if not os.path.exists(path):
-        logger.error("File doesn't exist!")
+        # Edit DiscordSRV Config
+        
 
-    with open(file=path, mode='r', encoding='utf_8') as f:
-        config.read_string('[config]\n' + f.read())
+        # Edit EssentialsX Config
+        
 
-    # logger.info(f.name)
-    for key, value in config['config'].items():
-        # print(key, value)
-         config_dict[key] = value
+    def write_file(self, line_iterator, filename: str):
+        """_summary_
 
-    return config_dict
+        Args:
+            line_iterator (_type_): _description_
+            filename (_type_): _description_
+        """
+        with open(file=os.path.join(self.world_path, filename), mode='w+', encoding='utf_8') as f:
+            f.writelines(line_iterator)
 
-def set_properties(config_dict):
-    # difficulty: Default Game Difficulty. Easy by default, but I prefer Hard.
-    # enforce-secure-profile: Enables chat reporting. This is stupid and dumb.
-    # enforce-whitelist: Kicks all players not present on the whitelist
-    # TODO: force-gamemode: Survival is the goal, but maybe adventure is a better option?
-    #     gamemode: Same as above
-    # hardcore: ignore difficulty and set to spectator after death
-    # level-name: Name of the directory containing world files
-    # level-seed: seed of the world
-    # motd: Message displayed below the client server name. Add some personality!
-    # online-mode: Require Mojang authorized accounts. Default True, leave it on. Changing this will also delete/unlink all existing player data.
-    # previews-chat: Shows previews for features like chat color before sending. Default false, set true.
-    # simulation-distance: Maximum distance that client can update server or ticks can occur
-    # view-distance: world data sent to the client (server-side viewing distance). Default 10
-    # white-list: Enables whitelist (Not enforced yet, but can be added to)
-    config_dict['difficulty'] = "hard"
-    config_dict['enforce-secure-profile'] = "true"
-    config_dict['enforce-whitelist'] = "false"
-    config_dict['difficulty'] = "hard"
-    config_dict['motd'] = "Welcome to the Reunion server!"
-    config_dict['previews-chat'] = "true"
-    config_dict['white-list'] = "true"
+    def read_properties(self, path: str, name: str = "server.properties"):
+        """_summary_
 
+        Args:
+            path (str): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        filepath = os.path.join(path, name)
+        if not os.path.exists(filepath):
+            logger.error("File doesn't exist!")
+        if os.path.isdir(filepath):
+            logger.error("Path leads to a directory")
+
+        with open(file=filepath, mode='r', encoding='utf_8') as f:
+            config.read_string('[config]\n' + f.read())
+
+        # logger.info(f.name)
+        config_dict = {}
+        for key, value in config['config'].items():
+            # print(key, value)
+            config_dict[key] = value
+
+        return config_dict
+
+    def set_properties(self):
+        """
+            difficulty: Default Game Difficulty. Easy by default, but I prefer Hard.
+            enforce-secure-profile: Enables chat reporting. This is stupid and dumb.
+            enforce-whitelist: Kicks all players not present on the whitelist
+            TODO: force-gamemode: Survival is the goal, but maybe adventure is a better option?
+                gamemode: Same as above
+            hardcore: ignore difficulty and set to spectator after death
+            level-name: Name of the directory containing world files
+            level-seed: seed of the world
+            motd: Message displayed below the client server name. Add some personality!
+            online-mode: Require Mojang authorized accounts. Default True, leave it on. Changing this will also delete/unlink all existing player data.
+            previews-chat: Shows previews for features like chat color before sending. Default false, set true.
+            simulation-distance: Maximum distance that client can update server or ticks can occur
+            view-distance: world data sent to the client (server-side viewing distance). Default 10
+            white-list: Enables whitelist (Not enforced yet, but can be added to)
+        """
+        self.config_dict['difficulty'] = "hard"
+        self.config_dict['enforce-secure-profile'] = "true"
+        self.config_dict['enforce-whitelist'] = "false"
+        self.config_dict['difficulty'] = "hard"
+        self.config_dict['motd'] = "Welcome to the Reunion server!"
+        self.config_dict['previews-chat'] = "true"
+        self.config_dict['white-list'] = "true"
+
+        config_ls = [f"{k}={v}\n" for k, v in self.config_dict.items()]
+        TSTMP = datetime.datetime.now().astimezone().strftime("#%a %b %d %H:%M:%S %Z %Y\n")
+        config_ls.insert(0, TSTMP)
+        DESC = "#Minecraft server properties\n"
+        config_ls.insert(0, DESC)
+
+        self.write_file(config_ls, "server.properties")
 
 if __name__ == "__main__":
-    if not os.path.exists(f"{ACTIVE_PATH}.gitignore"):
-        write_file(gitignore, '.gitignore')
-    if not os.path.exists(f"{ACTIVE_PATH}eula.txt"):
-        write_file(eula, 'eula.txt')
-
-    cd = read_properties(f"{ACTIVE_PATH}server.properties")
-    set_properties(cd)
-
-    config_ls = [f"{k}={v}\n" for k, v in config_dict.items()]
-    TSTMP = datetime.datetime.now().astimezone().strftime("#%a %b %d %H:%M:%S %Z %Y\n")
-    config_ls.insert(0, TSTMP)
-    DESC = "#Minecraft server properties\n"
-    config_ls.insert(0, DESC)
-
-    write_file(config_ls, "test-server.properties")
+    p = Properties(os.path.join(DEFAULT_PATH, "Test"))
