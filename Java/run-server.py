@@ -13,42 +13,12 @@ import os
 import shutil
 import subprocess
 import sys
-# import tarfile
 import threading
 import time
-# from tkinter import filedialog
+from tkinter import filedialog
 from typing import Literal
 
 import logFormat
-
-### CONSTANTS SECTION ###
-# TODO: Make this into an external config file that gets loaded in on startup, and updated on swap
-settings = {
-    "RAM": 8,
-    "HCAP": 6,
-    "DCAP": 3,
-    "SERVER_NAME": "Reunion",
-    "RUNNING": False,
-}
-
-### PATH SECTION ###
-DEFAULT_PATH = os.path.dirname(__file__)
-ACTIVE_PATH = f"{DEFAULT_PATH}/active/"
-BACKUP_PATH = f"{DEFAULT_PATH}/Worlds/{settings['SERVER_NAME']}/"
-# # If you want to put the backups in a different place, say on another hard drive, uncomment this
-# BACKUP_PATH = None
-# while BACKUP_PATH is None:
-#     BACKUP_PATH = filedialog.askdirectory(
-#                         title="Select Backup Directory",
-#                         initialdir=f"{DEFAULT_PATH}/"
-#                     )
-os.makedirs(name=BACKUP_PATH, exist_ok=True)
-
-### LOGGING SECTION ###
-logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
-logFormat.format_logs(logger_name="MCLOG", file_name=logname)
-logger = logging.getLogger("MCLOG")
-logger.info("Logname: %s", logname)
 
 
 class Server():
@@ -297,6 +267,44 @@ def kill(svr: Server, h_tmr: BackupTimer, d_tmr: BackupTimer):
     logger.warning("Done!")
 
 if __name__ == "__main__":
+    ### CONSTANTS SECTION ###
+    # TODO: Make this into an external config file that gets loaded in on startup, and updated on swap
+    settings = {
+        "RAM": 8,
+        "HCAP": 6,
+        "DCAP": 3,
+        "SERVER_NAME": "Reunion",
+        "RUNNING": False,
+    }
+
+    ### PATH SECTION ###
+    DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "Worlds")
+    print(DEFAULT_PATH)
+    ACTIVE_PATH = os.path.join(DEFAULT_PATH, settings['SERVER_NAME'])
+    ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
+    print(ops)
+    # If you want to put the backups in a different place, say on another hard drive, uncomment this
+    ACTIVE_PATH = None
+    while ACTIVE_PATH is None:
+        ACTIVE_PATH = filedialog.askdirectory(
+                            title="Select Backup Directory",
+                            initialdir=f"{DEFAULT_PATH}/"
+        )
+        assert ACTIVE_PATH == ""
+    BACKUP_PATH = os.path.join(ACTIVE_PATH, "Backups")
+    os.makedirs(name=BACKUP_PATH, exist_ok=True)
+
+    ### LOGGING SECTION ###
+    logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
+    logFormat.format_logs(logger_name="MCLOG", file_name=logname)
+    logger = logging.getLogger("MCLOG")
+    logger.info("Logname: %s", logname)
+    
+    # Startup
+    # Select Files
+    
+    exit()
+
     server, h_timer, d_timer = launch()
 
     try:
