@@ -273,37 +273,60 @@ if __name__ == "__main__":
         "RAM": 8,
         "HCAP": 6,
         "DCAP": 3,
-        "SERVER_NAME": "Reunion",
-        "RUNNING": False,
     }
 
     ### PATH SECTION ###
     DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "Worlds")
-    print(DEFAULT_PATH)
-    ACTIVE_PATH = os.path.join(DEFAULT_PATH, settings['SERVER_NAME'])
+
+    # Display Options
     ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
-    print(ops)
-    # If you want to put the backups in a different place, say on another hard drive, uncomment this
-    ACTIVE_PATH = None
-    while ACTIVE_PATH is None:
-        ACTIVE_PATH = filedialog.askdirectory(
-                            title="Select Backup Directory",
-                            initialdir=f"{DEFAULT_PATH}/"
-        )
-        assert ACTIVE_PATH == ""
+    for i, op in enumerate(ops):
+        print(f"{i+1}) {op}")
+    print("0) New World\n")
+    
+    # Collect Input
+    sel = input("Select option: ")
+    SERVER_NAME = sel
+    
+    known = False
+    if sel in ops:
+        known = True
+
+    ACTIVE_PATH = os.path.join(DEFAULT_PATH, SERVER_NAME)
+
+    # If new world, set up 
+    if not known:
+        launcher = input("What type of server will this be? ")
+        version = input("What type of server will this be? ")
+        addons = []
+        if type != "vanilla":
+            mod = "temp"
+            while mod != "":
+                mod = input("What Plugins/Mods do you want?")
+                addons.append(mod)
+
+    # Pick where old backups are and new backups should go
     BACKUP_PATH = os.path.join(ACTIVE_PATH, "Backups")
+    # # If you want to put the backups in a different place, say on another hard drive, uncomment this
+    # BACKUP_PATH = filedialog.askdirectory(
+    #                         title="Select Backup Directory",
+    #                         initialdir=f"{DEFAULT_PATH}/"
+    # )
+    # assert BACKUP_PATH != ""
     os.makedirs(name=BACKUP_PATH, exist_ok=True)
 
     ### LOGGING SECTION ###
     logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
     logFormat.format_logs(logger_name="MCLOG", file_name=logname)
     logger = logging.getLogger("MCLOG")
+    logger.info("World: %s", ACTIVE_PATH)
+    logger.info("Backups: %s", BACKUP_PATH)
     logger.info("Logname: %s", logname)
     
     # Startup
     # Select Files
     
-    exit()
+    sys.exit()
 
     server, h_timer, d_timer = launch()
 
