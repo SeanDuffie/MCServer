@@ -276,13 +276,15 @@ if __name__ == "__main__":
     }
 
     ### PATH SECTION ###
-    DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "Worlds")
+    TOP_PATH = os.path.dirname(__file__)
+    DEFAULT_PATH = os.path.join(TOP_PATH, "Worlds")
 
     # Display Options
+    print("Select World to load. If creating a new world, enter a name that doesn't exist yet.")
     ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
     for i, op in enumerate(ops):
         print(f"{i+1}) {op}")
-    print("0) New World\n")
+    # print("0) New World\n")
     
     # Collect Input
     sel = input("Select option: ")
@@ -294,16 +296,28 @@ if __name__ == "__main__":
 
     ACTIVE_PATH = os.path.join(DEFAULT_PATH, SERVER_NAME)
 
-    # If new world, set up 
+    # If new world, set up
     if not known:
-        launcher = input("What type of server will this be? ")
+        launcher = ""
+        while launcher not in ['vanilla', 'paper', 'forge']:
+            launcher = input("What launcher will this server use? (vanilla, paper, or forge): ")
+        launch_dir = os.path.join(TOP_PATH, f"versions/{launcher}")
+        launch_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
         version = input("What type of server will this be? ")
+
+        # TODO: Copy server jar into active dir
+
         addons = []
         if type != "vanilla":
             mod = "temp"
             while mod != "":
                 mod = input("What Plugins/Mods do you want?")
                 addons.append(mod)
+            
+            mod_dir = os.path.join(launch_dir, "addons")
+            # for addon in addons:
+            #     if addon in [x for x in os.listdir(mod_dir) if os.path.isdir(os.path.join(mod_dir, x))]
+        print("Additional Mods can be added manually later in the './mods' or './plugins' directory")
 
     # Pick where old backups are and new backups should go
     BACKUP_PATH = os.path.join(ACTIVE_PATH, "Backups")
