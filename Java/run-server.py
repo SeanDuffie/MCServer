@@ -20,14 +20,19 @@ from typing import Literal
 
 import logFormat
 
+ACTIVE_PATH: str = ""
+logger: logging.Formatter = None
+
 
 class Server():
     """_summary_
     """
     process: subprocess.Popen
 
-    def __init__(self, server_name: str = "Server"):
+    def __init__(self, server_name: str = "Server", ram: int = 8, hcap: int = 6, dcap: int = 3):
         self.server_name = server_name
+        self.hcap = hcap
+        self.dcap = dcap
         self.backup_flag = False
 
         os.chdir(ACTIVE_PATH)
@@ -36,7 +41,7 @@ class Server():
         self.executable = ""
         for filename in os.listdir(ACTIVE_PATH):
             if filename.endswith(".jar"):
-                self.executable = f"java -Xmx{settings['RAM'] * 1024}m -jar \"{filename}\" nogui"
+                self.executable = f"java -Xmx{ram * 1024}m -jar \"{filename}\" nogui"
                 break
 
         if self.executable == "":
@@ -107,17 +112,17 @@ class Server():
                     tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
                     prev_backup_type = parsed[2]
 
-                    if prev_backup_type == "Hourly": #  and (cur_time - tstmp) > datetime.timedelta(hours=settings['HCAP']):
+                    if prev_backup_type == "Hourly": #  and (cur_time - tstmp) > datetime.timedelta(hours=self.hcap):
                         hourly.append(filename)
-                    elif prev_backup_type == "Daily": # and (cur_time - tstmp) > datetime.timedelta(days=settings['DCAP']):
+                    elif prev_backup_type == "Daily": # and (cur_time - tstmp) > datetime.timedelta(days=self.dcap):
                         daily.append(filename)
                         # os.remove(filename)
 
             # TODO: Keep track of update history in a JSON
-            while len(hourly) > settings['HCAP']:
+            while len(hourly) > self.hcap:
                 os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
                 # logger.debug(hourly)
-            if len(daily) > settings['DCAP']:
+            if len(daily) > self.dcap:
                 os.remove(os.path.join(BACKUP_PATH, daily.pop(0)))
                 # logger.debug(daily)
         except OSError as e:
@@ -209,7 +214,7 @@ class BackupTimer(threading.Timer):
             self.function(*self.args, **self.kwargs)
         logger.info("BackupTimer finished.")
 
-def launch():
+def launch(server_name: str = "Server"):
     """ Launches the server and some parallel tasks to backup at different intervals.
 
     I split this off into it's own function so I can reuse it with different commands.
@@ -220,7 +225,7 @@ def launch():
         BackupTimer: Daily backup timer
     """
     # Launch the server
-    svr = Server(server_name=settings['SERVER_NAME'])
+    svr = Server(server_name=server_name)
 
     # Wait for the server to be active. Until it is, it will reject any attempted messages
     c = 10
@@ -267,14 +272,6 @@ def kill(svr: Server, h_tmr: BackupTimer, d_tmr: BackupTimer):
     logger.warning("Done!")
 
 if __name__ == "__main__":
-    ### CONSTANTS SECTION ###
-    # TODO: Make this into an external config file that gets loaded in on startup, and updated on swap
-    settings = {
-        "RAM": 8,
-        "HCAP": 6,
-        "DCAP": 3,
-    }
-
     ### PATH SECTION ###
     TOP_PATH = os.path.dirname(__file__)
     DEFAULT_PATH = os.path.join(TOP_PATH, "Worlds")
@@ -295,6 +292,12 @@ if __name__ == "__main__":
         known = True
 
     ACTIVE_PATH = os.path.join(DEFAULT_PATH, SERVER_NAME)
+    os.makedirs(ACTIVE_PATH, exist_ok=True)
+    
+    ### LOGGING SECTION ###
+    logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
+    logFormat.format_logs(logger_name="MCLOG", file_name=logname)
+    logger = logging.getLogger("MCLOG")
 
     # If new world, set up
     if not known:
@@ -302,22 +305,39 @@ if __name__ == "__main__":
         while launcher not in ['vanilla', 'paper', 'forge']:
             launcher = input("What launcher will this server use? (vanilla, paper, or forge): ")
         launch_dir = os.path.join(TOP_PATH, f"versions/{launcher}")
-        launch_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
-        version = input("What type of server will this be? ")
 
-        # TODO: Copy server jar into active dir
+        ver_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
+        print(ver_ops)
+        version = ""
+        while version not in ver_ops:
+            version = input("What type of server will this be? ")
+        ver_path = os.path.join(launch_dir, version)
 
-        addons = []
-        if type != "vanilla":
+        # Copy server jar into active dir
+        for fname in os.listdir(launch_dir):
+            if fname.endswith(".jar"):
+                shutil.copyfile(ver_path, ACTIVE_PATH)
+                
+        # If not vanilla, allow for addons
+        if launcher != "vanilla":
+            mod_dir = os.path.join(ver_path, "addons")
+            mod_ops = [x for x in os.listdir(mod_dir) if os.path.isfile(os.path.join(mod_dir, x))]
             mod = "temp"
             while mod != "":
+                print(mod_ops)
                 mod = input("What Plugins/Mods do you want?")
-                addons.append(mod)
-            
-            mod_dir = os.path.join(launch_dir, "addons")
-            # for addon in addons:
-            #     if addon in [x for x in os.listdir(mod_dir) if os.path.isdir(os.path.join(mod_dir, x))]
-        print("Additional Mods can be added manually later in the './mods' or './plugins' directory")
+                if mod in mod_ops:
+                    if launcher == "forge":
+                        # Move addon into server mod directory
+                        shutil.copyfile(os.path.join(mod_dir, mod), os.path.join(ACTIVE_PATH, "mods"))
+                    elif launcher == "paper":
+                        # Move addon into server mod directory
+                        shutil.copyfile(os.path.join(mod_dir, mod), os.path.join(ACTIVE_PATH, "plugins"))
+                else:
+                    logging.error("Addon not in list of options. Please select from the following list:")
+                    logging.error(mod_ops)
+                    
+        logging.warning("Additional Mods can be added manually later in the './mods' or './plugins' directory")
 
     # Pick where old backups are and new backups should go
     BACKUP_PATH = os.path.join(ACTIVE_PATH, "Backups")
@@ -329,20 +349,25 @@ if __name__ == "__main__":
     # assert BACKUP_PATH != ""
     os.makedirs(name=BACKUP_PATH, exist_ok=True)
 
-    ### LOGGING SECTION ###
-    logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
-    logFormat.format_logs(logger_name="MCLOG", file_name=logname)
-    logger = logging.getLogger("MCLOG")
     logger.info("World: %s", ACTIVE_PATH)
     logger.info("Backups: %s", BACKUP_PATH)
     logger.info("Logname: %s", logname)
-    
-    # Startup
-    # Select Files
-    
+
+    if not known:
+        # TODO: Generate Accepted EULA
+        
+
+        # Start World to generate config files
+        server, h_timer, d_timer = launch(SERVER_NAME)
+        time.sleep(5)
+        kill(server, h_timer, d_timer)
+        
+        # TODO: Edit config files for DiscordSRV and EssentialsX
+        
+
     sys.exit()
 
-    server, h_timer, d_timer = launch()
+    server, h_timer, d_timer = launch(SERVER_NAME)
 
     try:
         while True:
