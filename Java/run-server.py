@@ -281,7 +281,7 @@ if __name__ == "__main__":
     print("Select World to load. If creating a new world, enter a name that doesn't exist yet.")
     ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
     for i, op in enumerate(ops):
-        print(f"{i+1}) {op}")
+        print(f"({i}) {op}")
     # print("0) New World\n")
     
     # Collect Input
@@ -309,41 +309,55 @@ if __name__ == "__main__":
 
         ver_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
         for i, ver in enumerate(ver_ops):
-            logging.info("%d) %s", i, ver)
+            # logger.info("%d) %s", i, ver)
+            print(f"({i}) {ver}")
         version = ""
         while version not in ver_ops:
             version = input("What type of server will this be? ")
-        ver_path = os.path.join(launch_dir, version)
+        ver_dir = os.path.join(launch_dir, version)
 
         # Copy server jar into active dir
-        for fname in os.listdir(launch_dir):
+        for fname in os.listdir(ver_dir):
             if fname.endswith(".jar"):
-                shutil.copyfile(ver_path, ACTIVE_PATH)
+                logger.info("Moving jar '%s' to world '%s'", fname, ACTIVE_PATH)
+                shutil.copyfile(os.path.join(ver_dir, fname), os.path.join(ACTIVE_PATH, fname))
                 
         # If not vanilla, allow for addons
         if launcher != "vanilla":
-            mod_dir = os.path.join(ver_path, "addons")
-            mod_ops = [x for x in os.listdir(mod_dir) if os.path.isfile(os.path.join(mod_dir, x))]
-            mod = "temp"
-            while mod != "":
+            addon_src_dir = os.path.join(ver_dir, "addons")
+            mod_ops = [x for x in os.listdir(addon_src_dir) if os.path.isfile(os.path.join(addon_src_dir, x))]
+            while True:
+                # Skip if no options are available
+                if not mod_ops:
+                    break
+
+                # Display options and select one
                 for i, mod in enumerate(mod_ops):
-                    logging.info("%d) %s", i, mod)
-                mod = input("What Plugins/Mods do you want?")
-                if mod in mod_ops:
+                    # logger.info("%d) %s", i, mod)
+                    print(f"({i}) {mod}")
+                try:
+                    mod_num = int(input("What Plugins/Mods do you want? (Leave blank and hit 'enter' to skip): "))
+                except ValueError:
+                    break
+
+                # Handle selection
+                if mod_num in range(len(mod_ops)):
+                    mod = mod_ops[mod_num]
                     if launcher == "forge":
                         # Move addon into server mod directory
-                        addon_dir = os.path.join(ACTIVE_PATH, "mods")
-                        # shutil.copyfile(os.path.join(mod_dir, mod), os.path.join(ACTIVE_PATH, "mods"))
+                        addon_target_dir = os.path.join(ACTIVE_PATH, "mods")
+                        # shutil.copyfile(os.path.join(addon_src_dir, mod), os.path.join(ACTIVE_PATH, "mods"))
                     elif launcher == "paper":
                         # Move addon into server mod directory
-                        addon_dir = os.path.join(ACTIVE_PATH, "plugins")
-                    os.makedirs(addon_dir)
-                    shutil.copyfile(os.path.join(mod_dir, mod), os.path.join(addon_dir, mod))
+                        addon_target_dir = os.path.join(ACTIVE_PATH, "plugins")
+                    os.makedirs(addon_target_dir, exist_ok=True)
+                    logger.info("Moving addon '%s' to world addon directory '%s'", mod, addon_target_dir)
+                    shutil.copyfile(os.path.join(addon_src_dir, mod), os.path.join(addon_target_dir, mod))
+                    mod_ops.pop(mod_num)
                 else:
-                    logging.error("Addon not in list of options. Please select from the following list:")
-                    logging.error(mod_ops)
-                    
-        logging.warning("Additional Mods can be added manually later in the './mods' or './plugins' directory")
+                    logger.error("Addon not in list of options. Please select an index from the following list:")
+
+        logger.warning("Additional Mods can be added manually later in the './mods' or './plugins' directory")
 
     # Pick where old backups are and new backups should go
     BACKUP_PATH = os.path.join(ACTIVE_PATH, "Backups")
