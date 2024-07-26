@@ -4,6 +4,9 @@ import configparser
 import datetime
 import logging
 import os
+# import yaml
+import ruamel.yaml
+import sys
 
 import logFormat
 
@@ -104,16 +107,84 @@ def properties(world_path: str):
     write_file(line_iterator=config_ls, filename="server.properties", world_path=world_path)
 
 def discordsrv(world_path: str = DEFAULT_PATH):
-    # Edit DiscordSRV Config
-    # Output changes to file
-    # write_file(line_iterator=config_ls, filename="server.properties", world_path=world_path)
-    pass
+    """ Makes modifications to the server.properties file.
 
-def essentialsx():
-    # Edit EssentialsX Config
+    Properties:
+        difficulty: Default Game Difficulty. Easy by default, but I prefer Hard.
+        enforce-secure-profile: Enables chat reporting. This is stupid and dumb.
+        enforce-whitelist: Kicks all players not present on the whitelist
+        TODO: force-gamemode: Survival is the goal, but maybe adventure is a better option?
+            gamemode: Same as above
+        hardcore: ignore difficulty and set to spectator after death
+        level-name: Name of the directory containing world files
+        level-seed: seed of the world
+        motd: Message displayed below the client server name. Add some personality!
+        online-mode: Require Mojang authorized accounts. Default True, leave it on. Changing this will also delete/unlink all existing player data.
+        previews-chat: Shows previews for features like chat color before sending. Default false, set true.
+        simulation-distance: Maximum distance that client can update server or ticks can occur
+        view-distance: world data sent to the client (server-side viewing distance). Default 10
+        white-list: Enables whitelist (Not enforced yet, but can be added to)
+
+    Args:
+        world_path (str, optional): Path to the world that is being run. Defaults to DEFAULT_PATH.
+    """
+    # Check that the server.properties file has already been generated
+    configfile = os.path.join(world_path, "plugins/DiscordSRV")
+    if not os.path.isfile(configfile):
+        logger.error("File doesn't exist! Accept the EULA and launch the executable first!")
+
+    # Open DiscordSRV YAML File
+    yaml = ruamel.yaml.YAML()
+    config = yaml.load(configfile)
+    print(config)
+
+    # Edit DiscordSRV Config
+
+
     # Output changes to file
     # write_file(line_iterator=config_ls, filename="server.properties", world_path=world_path)
-    pass
+    with open(file=configfile, mode='w+', encoding='utf_8') as f:
+        yaml.dump(config, f)
+
+def essentialsx(world_path: str = DEFAULT_PATH):
+    """ Makes modifications to the server.properties file.
+
+    Properties:
+        difficulty: Default Game Difficulty. Easy by default, but I prefer Hard.
+        enforce-secure-profile: Enables chat reporting. This is stupid and dumb.
+        enforce-whitelist: Kicks all players not present on the whitelist
+        TODO: force-gamemode: Survival is the goal, but maybe adventure is a better option?
+            gamemode: Same as above
+        hardcore: ignore difficulty and set to spectator after death
+        level-name: Name of the directory containing world files
+        level-seed: seed of the world
+        motd: Message displayed below the client server name. Add some personality!
+        online-mode: Require Mojang authorized accounts. Default True, leave it on. Changing this will also delete/unlink all existing player data.
+        previews-chat: Shows previews for features like chat color before sending. Default false, set true.
+        simulation-distance: Maximum distance that client can update server or ticks can occur
+        view-distance: world data sent to the client (server-side viewing distance). Default 10
+        white-list: Enables whitelist (Not enforced yet, but can be added to)
+
+    Args:
+        world_path (str, optional): Path to the world that is being run. Defaults to DEFAULT_PATH.
+    """
+    # Check that the server.properties file has already been generated
+    configfile = os.path.join(world_path, "plugins/DiscordSRV")
+    if not os.path.isfile(configfile):
+        logger.error("File doesn't exist! Accept the EULA and launch the executable first!")
+
+    # Open DiscordSRV YAML File
+    yaml = ruamel.yaml.YAML()
+    config = yaml.load(configfile)
+    print(config)
+
+    # Edit DiscordSRV Config
+
+
+    # Output changes to file
+    # write_file(line_iterator=config_ls, filename="server.properties", world_path=world_path)
+    with open(file=configfile, mode='w+', encoding='utf_8') as f:
+        yaml.dump(config, f)
 
 def write_file(line_iterator, filename: str, world_path: str):
     """_summary_
