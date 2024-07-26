@@ -15,10 +15,11 @@ import subprocess
 import sys
 import threading
 import time
-from tkinter import filedialog
+# from tkinter import filedialog
 from typing import Literal
 
 import logFormat
+from configs import discordsrv, essentialsx, eula, properties
 
 ACTIVE_PATH: str = ""
 logger: logging.Formatter = None
@@ -307,7 +308,8 @@ if __name__ == "__main__":
         launch_dir = os.path.join(TOP_PATH, f"versions/{launcher}")
 
         ver_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
-        print(ver_ops)
+        for i, ver in enumerate(ver_ops):
+            logging.info("%d) %s", i, ver)
         version = ""
         while version not in ver_ops:
             version = input("What type of server will this be? ")
@@ -324,15 +326,19 @@ if __name__ == "__main__":
             mod_ops = [x for x in os.listdir(mod_dir) if os.path.isfile(os.path.join(mod_dir, x))]
             mod = "temp"
             while mod != "":
-                print(mod_ops)
+                for i, mod in enumerate(mod_ops):
+                    logging.info("%d) %s", i, mod)
                 mod = input("What Plugins/Mods do you want?")
                 if mod in mod_ops:
                     if launcher == "forge":
                         # Move addon into server mod directory
-                        shutil.copyfile(os.path.join(mod_dir, mod), os.path.join(ACTIVE_PATH, "mods"))
+                        addon_dir = os.path.join(ACTIVE_PATH, "mods")
+                        # shutil.copyfile(os.path.join(mod_dir, mod), os.path.join(ACTIVE_PATH, "mods"))
                     elif launcher == "paper":
                         # Move addon into server mod directory
-                        shutil.copyfile(os.path.join(mod_dir, mod), os.path.join(ACTIVE_PATH, "plugins"))
+                        addon_dir = os.path.join(ACTIVE_PATH, "plugins")
+                    os.makedirs(addon_dir)
+                    shutil.copyfile(os.path.join(mod_dir, mod), os.path.join(addon_dir, mod))
                 else:
                     logging.error("Addon not in list of options. Please select from the following list:")
                     logging.error(mod_ops)
@@ -354,16 +360,21 @@ if __name__ == "__main__":
     logger.info("Logname: %s", logname)
 
     if not known:
-        # TODO: Generate Accepted EULA
-        
+        # Generate Accepted EULA
+        eula(ACTIVE_PATH)
 
         # Start World to generate config files
         server, h_timer, d_timer = launch(SERVER_NAME)
         time.sleep(5)
         kill(server, h_timer, d_timer)
         
-        # TODO: Edit config files for DiscordSRV and EssentialsX
+        # Edit initial Server config
+        properties(ACTIVE_PATH)
         
+        if launcher == "paper":
+            # TODO: Edit config files for DiscordSRV and EssentialsX
+            discordsrv(ACTIVE_PATH)
+            essentialsx(ACTIVE_PATH)
 
     sys.exit()
 
