@@ -8,13 +8,11 @@ import os
 import ruamel.yaml
 import sys
 
-import logFormat
 
 ### PATH SECTION ###
 DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "Worlds/Server")
 
 ### LOGGING SECTION ###
-logFormat.format_logs(logger_name="MCLOG")
 logger = logging.getLogger("MCLOG")
 
 def eula(world_path: str = DEFAULT_PATH):
