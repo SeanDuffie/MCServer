@@ -38,30 +38,32 @@ class Server():
 
         os.chdir(ACTIVE_PATH)
         logger.info('Starting server')
-
-        self.executable = ""
-        for filename in os.listdir(ACTIVE_PATH):
-            if filename.endswith(".jar"):
-                self.executable = f"java -Xmx{ram * 1024}m -jar \"{filename}\" nogui"
-                break
-
-        if self.executable == "":
-            logger.error("No Executable Jar file detected! Please add one to 'active' directory")
-            sys.exit(1)
-
-        self.run()
+        self.run(ram=ram)
 
         logger.info("Server started.")
 
-    def run(self):
+    def run(self, ram: int = 8):
         """ Called when the server is launched.
 
             Launches and attaches the server process to self.process variable.
             This is called in __init__ and must finish before any interactions with the server can
             occur.
+            
+        Args:
+            ram (int): Amount of ram in Gigabytes to allocate for the server.
         """
-        logger.info("Running command: %s", self.executable)
-        self.process = subprocess.Popen(self.executable, stdin=subprocess.PIPE)
+        executable = ""
+        for filename in os.listdir(ACTIVE_PATH):
+            if filename.endswith(".jar"):
+                executable = f"java -Xmx{ram * 1024}m -jar \"{filename}\" nogui"
+                break
+
+        if executable == "":
+            logger.error("No Executable Jar file detected! Please add one to 'active' directory")
+            sys.exit(1)
+
+        logger.info("Running command: %s", executable)
+        self.process = subprocess.Popen(executable, stdin=subprocess.PIPE)
 
     def server_command(self, cmd: str):
         """ Sends a string from the local python script to the server shell process
@@ -79,7 +81,7 @@ class Server():
             logger.error("Error Writing to Server. Is it inactive?")
             return False
 
-    def backup(self, backup_type: Literal["Daily", "Hourly", "Manual"]):
+    def backup(self, backup_type: Literal["Daily", "Hourly", "Manual", "Restore"]):
         """_summary_
 
         Returns:
@@ -113,13 +115,13 @@ class Server():
                     tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
                     prev_backup_type = parsed[2]
 
-                    if prev_backup_type == "Hourly": #  and (cur_time - tstmp) > datetime.timedelta(hours=self.hcap):
+                    if prev_backup_type == "Hourly":
                         hourly.append(filename)
-                    elif prev_backup_type == "Daily": # and (cur_time - tstmp) > datetime.timedelta(days=self.dcap):
+                    elif prev_backup_type == "Daily":
                         daily.append(filename)
                         # os.remove(filename)
 
-            # TODO: Keep track of update history in a JSON
+            # TODO: Keep track of backup history in a JSON
             while len(hourly) > self.hcap:
                 os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
                 # logger.debug(hourly)
@@ -155,9 +157,26 @@ class Server():
         self.backup_flag = False
         return True
 
-    def restore_backup(self, name: str):
-        # shutil.unpack_archive()
-        pass
+    def restore(self, zip_name: str):
+        # # Validity Checks
+        # try:
+        #     zip_path = os.path.join(self.zip_dir, zip_name)
+        #     assert os.path.exists(zip_path)
+        # except AssertionError:
+        #     zip_path = zip_name
+        #     try:
+        #         assert os.path.exists(zip_path)
+        #     except AssertionError:
+        #         return False
+
+        # # Open Zipfile for reading
+        # with zipfile.ZipFile(zip_path, 'r') as zip_file:
+        #     zip_file.extractall(TEST_PATH)
+        #     logger.info("Files extracted from: (%s) to (%s)", zip_path, TEST_PATH)
+
+        # return True
+        logger.error("Restore functionality not implemented yet!")
+        return False
 
 
 class BackupTimer(threading.Timer):
@@ -205,7 +224,7 @@ class BackupTimer(threading.Timer):
         return nxt
 
     def get_remaining(self):
-        return self.tnext - self.tprev
+        return self.tnext - datetime.datetime.now()
 
     def run(self):
         while not self.finished.wait((self.tnext - self.tprev).total_seconds()):
@@ -215,7 +234,7 @@ class BackupTimer(threading.Timer):
             self.function(*self.args, **self.kwargs)
         logger.info("BackupTimer finished.")
 
-def launch(server_name: str = "Server"):
+def launch(server_name: str = "Server", ram: int = 8):
     """ Launches the server and some parallel tasks to backup at different intervals.
 
     I split this off into it's own function so I can reuse it with different commands.
@@ -226,7 +245,7 @@ def launch(server_name: str = "Server"):
         BackupTimer: Daily backup timer
     """
     # Launch the server
-    svr = Server(server_name=server_name)
+    svr = Server(server_name=server_name, ram=ram)
 
     # Wait for the server to be active. Until it is, it will reject any attempted messages
     c = 10
@@ -287,6 +306,7 @@ if __name__ == "__main__":
     # Collect Input
     sel = input("Select option: ")
     SERVER_NAME = sel
+    RAM = 8
     
     known = False
     if sel in ops:
@@ -378,7 +398,7 @@ if __name__ == "__main__":
         eula(ACTIVE_PATH)
 
         # Start World to generate config files
-        server, h_timer, d_timer = launch(SERVER_NAME)
+        server, h_timer, d_timer = launch(SERVER_NAME, RAM)
         time.sleep(5)
         kill(server, h_timer, d_timer)
         
@@ -386,53 +406,61 @@ if __name__ == "__main__":
         properties(ACTIVE_PATH)
         
         if launcher == "paper":
-            # TODO: Edit config files for DiscordSRV and EssentialsX
+            # Edit config files for DiscordSRV and EssentialsX.
+            # TODO: check to make sure that these plugins are included.
             discordsrv(ACTIVE_PATH)
             essentialsx(ACTIVE_PATH)
 
-    sys.exit()
-
-    server, h_timer, d_timer = launch(SERVER_NAME)
+    server, h_timer, d_timer = launch(SERVER_NAME, RAM)
 
     try:
         while True:
             time.sleep(1)
             command = input("Send a manual command: /")
-            if command.startswith("restore"):
-                # TODO: restore from a certain backup
-                pass
-            elif command.startswith("backup"):
+            if command.startswith("backup"):
                 server.backup(backup_type="Manual")
-            elif command.startswith("swap"):
-                # TODO: Take arguement for new server name
-                pass
+
+            elif command.startswith("restore"):
+                backup = command.split(sep=' ', maxsplit=1)[1]
+                # TODO: restore from a certain backup
+                server.backup("Restore")
+                server.restore(backup)
+
+            elif command.startswith("remaining"):
+                logger.info("Next Daily Backup is %s from now", d_timer.get_remaining())
+                logger.info("Next Hourly Backup is %s from now", h_timer.get_remaining())
+
             elif command.startswith("hcap"):
-                # TODO: Modify the limit of hourly backups
-                pass
+                # Modify the limit of hourly backups
+                try:
+                    HCAP = int(command.split(sep=' ')[1])
+                    server.hcap = HCAP
+                except ValueError:
+                    logger.error("Invalid entry, enter in an integer after the command")
+
             elif command.startswith("dcap"):
-                # TODO: Modify the limit of daily backups
-                pass
+                # Modify the limit of daily backups
+                try:
+                    DCAP = int(command.split(sep=' ')[1])
+                    server.dcap = DCAP
+                except ValueError:
+                    logger.error("Invalid entry, enter in an integer after the command")
+
             elif command.startswith("restart"):
                 kill(server, h_timer, d_timer)
-                server, h_timer, d_timer = launch()
+                server, h_timer, d_timer = launch(SERVER_NAME, ram=RAM)
+
             elif command.startswith("ram"):
-                # TODO: Modify the value of dedicated ram
+                # Modify the value of dedicated ram
+                try:
+                    RAM = int(command.split(sep=' ')[1])
+                except ValueError:
+                    logger.error("Invalid entry, enter in an integer after the command")
+
                 # Restart the server
                 kill(server, h_timer, d_timer)
-                server, h_timer, d_timer = launch()
-            elif command.startswith("new"):
-                # TODO: Backup the most recent server
-                server.backup(backup_type="Manual")
-                # TODO: Get a new name
-                # TODO: Get a new jar type
-                # TODO: If modded, load up a list of mods
-            elif command.startswith("get"):
-                parsed = command.split(" ")
-                print(parsed)
-                if parsed[1] == "dtime":
-                    logger.info("Next Daily Backup is %s from now", d_timer.get_remaining())
-                elif parsed[1] == "htime":
-                    logger.info("Next Hourly Backup is %s from now", h_timer.get_remaining())
+                server, h_timer, d_timer = launch(SERVER_NAME, ram=RAM)
+
             else:
                 server.server_command(command)
     except KeyboardInterrupt:
