@@ -179,34 +179,53 @@ def discordsrv(world_path: str = DEFAULT_PATH):
     if not os.path.isfile(voicefile):
         logger.error("Voice File doesn't exist! Accept the EULA and launch the executable first!")
 
-    # Open DiscordSRV YAML Files
+    # Read and Edit DiscordSRV YAML Files
     # yaml = ruamel.yaml.YAML()
-    with open(file=alertfile, mode='r', encoding='utf_8') as f:
-        alert = yaml.safe_load(f)
-        print(alert)
+    # with open(file=alertfile, mode='r', encoding='utf_8') as f:
+    #     alert = yaml.safe_load(f)
     with open(file=configfile, mode='r', encoding='utf_8') as f:
         config = yaml.safe_load(f)
-        print(config)
+        config["BotToken"] = input("Enter Discord Bot Token: ")
+        public_channel = input("Enter public channel: ")
+        config["Channels"] = {
+            "global": input("Enter admin channel: "),
+            "awards": public_channel,
+            "deaths": public_channel,
+            "join": public_channel,
+            "broadcasts": public_channel,
+            "link": input("Enter linking channel: ")
+        }
+        config["DiscordConsoleChannelId"] = input("Enter console channel: ")
+        url = input("Enter Server URL/IP: ")
+        config["DiscordGameStatus"] = [url]
+        config["DiscordCannedResponses"] = {
+            "!ip": url,
+            "!site": url
+        }
     with open(file=linkingfile, mode='r', encoding='utf_8') as f:
         linking = yaml.safe_load(f)
+        linking["Require linked account to play"]["Enabled"] = True
         print(linking)
     with open(file=messagesfile, mode='r', encoding='utf_8') as f:
         messages = yaml.safe_load(f)
-        print(messages)
+        messages["MinecraftPlayerLeaveMessage"]["Enabled"] = False
+        messages["ChannelTopicUpdaterChatChannelTopicFormat"] = "%playercount%/%playermax% online | %tps% tps | %totalplayers% unique players | Online for %uptimemins% minutes | Last update: %date%"
+        messages["ChannelTopicUpdaterChatChannelTopicAtServerShutdownFormat"] = "Server is offline | %totalplayers% unique players ever joined"
     with open(file=syncfile, mode='r', encoding='utf_8') as f:
         sync = yaml.safe_load(f)
-        print(sync)
+        sync["GroupRoleSynchronizationMinecraftIsAuthoritative"] = False
+        sync["GroupRoleSynchronizationOneWay"] = True
     with open(file=voicefile, mode='r', encoding='utf_8') as f:
         voice = yaml.safe_load(f)
-        print(voice)
-
-    # Edit DiscordSRV Config
-
+        voice["Voice enabled"] = True
+        voice["Voice category"] = input("Enter voice category: ")
+        voice["Lobby channel"] = input("Enter lobby channel: ")
+        # Do I want this???
+        voice["Network"]["Channels are visible"] = False
 
     # Output changes to file
-    # write_file(line_iterator=config_ls, filename="server.properties", world_path=world_path)
-    with open(file=alertfile, mode='w+', encoding='utf_8') as f:
-        yaml.dump(alert, f)
+    # with open(file=alertfile, mode='w+', encoding='utf_8') as f:
+    #     yaml.dump(alert, f)
     with open(file=configfile, mode='w+', encoding='utf_8') as f:
         yaml.dump(config, f)
     with open(file=linkingfile, mode='w+', encoding='utf_8') as f:
@@ -233,13 +252,20 @@ def essentialsx(world_path: str = DEFAULT_PATH):
     # yaml = ruamel.yaml.YAML()
     with open(file=configfile, mode='r', encoding='utf_8') as f:
         config = yaml.safe_load(f)
-        print(config)
-
-    # Edit EssentialsX Config
-
+        # config["custom-join-message"] = ""
+        # config["custom-quit-message"] = ""
+        # config["custom-new-username-message"] = ""
+        config["update-check"] = False
+        config["sethome-multiple"]["default"] = input("How many default homes?")
+        config["sethome-multiple"]["vip"] = input("How many vip homes?")
+        config["sethome-multiple"]["staff"] = input("How many staff homes?")
+        config["compass-towards-home-perm"] = True
+        config["confirm-home-overwrite"] = True
+        # TODO: Protect
+        # TODO: Disable phantom?
+        # TODO: Spawn + New Players
 
     # Output changes to file
-    # write_file(line_iterator=config_ls, filename="server.properties", world_path=world_path)
     with open(file=configfile, mode='w+', encoding='utf_8') as f:
         yaml.dump(config, f)
 
