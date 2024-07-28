@@ -6,13 +6,28 @@ import logging
 import os
 
 import yaml
-# import ruamel.yaml
+from dotenv import load_dotenv
 
 ### PATH SECTION ###
 DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "Worlds/Server")
 
 ### LOGGING SECTION ###
 logger = logging.getLogger("MCLOG")
+
+############ GET ENVIRONMENT VARIABLES ############
+RTDIR = os.path.dirname(__file__)
+
+load_dotenv(dotenv_path=f"{RTDIR}/.env")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+PUBLIC_CHANNEL = os.getenv("PUBLIC_CHANNEL")
+ADMIN_CHANNEL = os.getenv("ADMIN_CHANNEL")
+LINK_CHANNEL = os.getenv("LINK_CHANNEL")
+CONSOLE_CHANNEL = os.getenv("CONSOLE_CHANNEL")
+VOICE_CATEGORY = os.getenv("VOICE_CATEGORY")
+LOBBY_CHANNEL = os.getenv("LOBBY_CHANNEL")
+INVITE_LINK = os.getenv("INVITE_LINK")
+SERVER_URL = os.getenv("SERVER_URL")
+###################################################
 
 def eula(world_path: str = DEFAULT_PATH):
     """ Generates the EULA and automatically accepts it.
@@ -46,7 +61,7 @@ def gitignore(world_path: str = DEFAULT_PATH):
     # Output changes to file
     write_file(line_iterator=lines, filename=".gitignore", world_path=world_path)
 
-def properties(world_path: str = DEFAULT_PATH):
+def properties(world_path: str = DEFAULT_PATH, server_type: str = "vanilla"):
     """ Makes modifications to the server.properties file.
 
     Properties:
@@ -63,7 +78,7 @@ def properties(world_path: str = DEFAULT_PATH):
         previews-chat: Shows previews for features like chat color before sending. Default false, set true.
         simulation-distance: Maximum distance that client can update server or ticks can occur
         view-distance: world data sent to the client (server-side viewing distance). Default 10
-        white-list: Enables whitelist (Not enforced yet, but can be added to)
+        white-list: Enables whitelist (Enable if Vanilla, disable if using DiscordSRV)
 
     Args:
         world_path (str, optional): Path to the world that is being run. Defaults to DEFAULT_PATH.
@@ -86,12 +101,15 @@ def properties(world_path: str = DEFAULT_PATH):
 
     # Modify the desired sections in the dictionary
     config_dict['difficulty'] = "hard"
-    config_dict['enforce-secure-profile'] = "true"
-    config_dict['enforce-whitelist'] = "false"
-    config_dict['difficulty'] = "hard"
+    config_dict['enforce-secure-profile'] = False
     config_dict['motd'] = "Welcome to the Reunion server!"
-    config_dict['previews-chat'] = "true"
-    config_dict['white-list'] = "true"
+    config_dict['previews-chat'] = True
+    config_dict["simulation-distance"] = 32
+    config_dict["view-distance"] = 32
+
+    if server_type == "vanilla":
+        config_dict['white-list'] = True
+        config_dict['enforce-whitelist'] = True
 
     # Convert the dictionary to a list
     config_ls = [f"{k}={v}\n" for k, v in config_dict.items()]
@@ -185,27 +203,26 @@ def discordsrv(world_path: str = DEFAULT_PATH):
     #     alert = yaml.safe_load(f)
     with open(file=configfile, mode='r', encoding='utf_8') as f:
         config = yaml.safe_load(f)
-        config["BotToken"] = input("Enter Discord Bot Token: ")
-        public_channel = input("Enter public channel: ")
+        config["BotToken"] = DISCORD_TOKEN
         config["Channels"] = {
-            "global": input("Enter admin channel: "),
-            "awards": public_channel,
-            "deaths": public_channel,
-            "join": public_channel,
-            "broadcasts": public_channel,
-            "link": input("Enter linking channel: ")
+            "global": ADMIN_CHANNEL,
+            "awards": PUBLIC_CHANNEL,
+            "deaths": PUBLIC_CHANNEL,
+            "join": PUBLIC_CHANNEL,
+            "broadcasts": PUBLIC_CHANNEL,
+            "link": LINK_CHANNEL
         }
-        config["DiscordConsoleChannelId"] = input("Enter console channel: ")
-        url = input("Enter Server URL/IP: ")
-        config["DiscordGameStatus"] = [url]
+        config["DiscordConsoleChannelId"] = CONSOLE_CHANNEL
+        config["DiscordInviteLink"] = INVITE_LINK
+        config["DiscordGameStatus"] = [SERVER_URL]
         config["DiscordCannedResponses"] = {
-            "!ip": url,
-            "!site": url
+            "!ip": SERVER_URL,
+            "!site": SERVER_URL,
+            "!discord": INVITE_LINK
         }
     with open(file=linkingfile, mode='r', encoding='utf_8') as f:
         linking = yaml.safe_load(f)
         linking["Require linked account to play"]["Enabled"] = True
-        print(linking)
     with open(file=messagesfile, mode='r', encoding='utf_8') as f:
         messages = yaml.safe_load(f)
         messages["MinecraftPlayerLeaveMessage"]["Enabled"] = False
@@ -218,8 +235,8 @@ def discordsrv(world_path: str = DEFAULT_PATH):
     with open(file=voicefile, mode='r', encoding='utf_8') as f:
         voice = yaml.safe_load(f)
         voice["Voice enabled"] = True
-        voice["Voice category"] = input("Enter voice category: ")
-        voice["Lobby channel"] = input("Enter lobby channel: ")
+        voice["Voice category"] = VOICE_CATEGORY
+        voice["Lobby channel"] = LOBBY_CHANNEL
         # Do I want this???
         voice["Network"]["Channels are visible"] = False
 
@@ -256,9 +273,9 @@ def essentialsx(world_path: str = DEFAULT_PATH):
         # config["custom-quit-message"] = ""
         # config["custom-new-username-message"] = ""
         config["update-check"] = False
-        config["sethome-multiple"]["default"] = input("How many default homes?")
-        config["sethome-multiple"]["vip"] = input("How many vip homes?")
-        config["sethome-multiple"]["staff"] = input("How many staff homes?")
+        # config["sethome-multiple"]["default"] = input("How many default homes? ")
+        # config["sethome-multiple"]["vip"] = input("How many vip homes? ")
+        # config["sethome-multiple"]["staff"] = input("How many staff homes? ")
         config["compass-towards-home-perm"] = True
         config["confirm-home-overwrite"] = True
         # TODO: Protect
