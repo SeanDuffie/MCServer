@@ -1,6 +1,6 @@
 """ @file schedule.py
     @author Sean Duffie
-    @brief 
+    @brief Scheduler thread wrapper class that runs the backup function on every interval
 """
 import datetime
 import logging
@@ -26,6 +26,15 @@ class Scheduler(threading.Timer):
         logger.warning("Seconds until First %s Backup: %s", *self.args, (self.tnext - self.tprev).total_seconds())
 
     def next_time(self, prev: datetime.datetime, interval: datetime.timedelta):
+        """ Calculates the next timestamp that "run" will be active.
+
+        Args:
+            prev (datetime.datetime): Timestamp of last action.
+            interval (datetime.timedelta): Seconds in between actions.
+
+        Returns:
+            datetime.datetime: Timestamp of the next run
+        """
         if interval > datetime.timedelta(seconds=86399):
             # If the program is started in the morning between 12AM and 6AM, round next time down
             if prev.hour < 6:
@@ -59,11 +68,15 @@ class Scheduler(threading.Timer):
         return nxt
 
     def get_remaining(self):
+        """ Calculates and returns time remaining before next backup.
+
+        Returns:
+            datetime.timedelta: Amount of time remaining before next backup.
+        """
         return self.tnext - datetime.datetime.now()
 
     def run(self):
-        """ Run the backup 
-        """
+        """ Function callback that is launched whenever the Scheduler thread is started. """
         while not self.finished.wait((self.tnext - self.tprev).total_seconds()):
             self.tprev = self.tnext
             self.tnext = self.next_time(self.tprev, self.invl)
