@@ -19,6 +19,7 @@ import time
 from typing import Literal
 
 import logFormat
+from scheduler import Scheduler
 from configs import discordsrv, essentialsx, eula, properties
 
 ACTIVE_PATH: str = ""
@@ -178,62 +179,6 @@ class Server():
         logger.error("Restore functionality not implemented yet!")
         return False
 
-
-class BackupTimer(threading.Timer):
-    def __init__(self, interval, function, args=None, kwargs=None):
-        threading.Timer.__init__(self, interval, function, args, kwargs)
-
-        self.start_time = datetime.datetime.now()
-        self.tprev = self.start_time
-        self.invl = datetime.timedelta(seconds=self.interval)
-        self.tnext = self.next_time(self.start_time, self.invl)
-
-        logger.warning("Seconds until First %s Backup: %s", *self.args, (self.tnext - self.tprev).total_seconds())
-
-    def next_time(self, prev: datetime.datetime, interval: datetime.timedelta):
-        if interval > datetime.timedelta(seconds=86399):
-            # If the program is started in the morning between 12AM and 6AM, round next time down
-            if prev.hour < 6:
-                day = prev.day
-            # Otherwise, round next time up
-            else:
-                day = prev.day + interval.days
-
-            # Always back up at the next 6AM occurrence.
-            nxt = datetime.datetime(
-                year=prev.year,
-                month=prev.month,
-                day=day,
-                hour=6,
-                minute=0,
-                second=0,
-                microsecond=0
-            )
-        else:
-            # Always back up at the top of the next hour
-            nxt = datetime.datetime(
-                year=prev.year,
-                month=prev.month,
-                day=prev.day + interval.days,
-                hour=(prev.hour + (interval.seconds // 3600)) % 24,
-                minute=0,
-                second=0,
-                microsecond=0
-            )
-        logger.info("Next %s Backup time is at %s (currently %s)", *self.args, nxt, datetime.datetime.now())
-        return nxt
-
-    def get_remaining(self):
-        return self.tnext - datetime.datetime.now()
-
-    def run(self):
-        while not self.finished.wait((self.tnext - self.tprev).total_seconds()):
-            self.tprev = self.tnext
-            self.tnext = self.next_time(self.tprev, self.invl)
-
-            self.function(*self.args, **self.kwargs)
-        logger.info("BackupTimer finished.")
-
 def launch(server_name: str = "Server", ram: int = 8):
     """ Launches the server and some parallel tasks to backup at different intervals.
 
@@ -241,8 +186,8 @@ def launch(server_name: str = "Server", ram: int = 8):
 
     Returns:
         Server: Server process/object to interface with
-        BackupTimer: Hourly backup timer
-        BackupTimer: Daily backup timer
+        Scheduler: Hourly backup timer
+        Scheduler: Daily backup timer
     """
     # Launch the server
     svr = Server(server_name=server_name, ram=ram)
@@ -257,8 +202,8 @@ def launch(server_name: str = "Server", ram: int = 8):
 
     # Start the Backup Timers
     logger.info('Starting backup timer')
-    h_tmr = BackupTimer(3600, svr.backup, args=["Hourly"])
-    d_tmr = BackupTimer(86400, svr.backup, args=["Daily"])
+    h_tmr = Scheduler(3600, svr.backup, args=["Hourly"])
+    d_tmr = Scheduler(86400, svr.backup, args=["Daily"])
     logger.info("Timers Initialized")
     h_tmr.start()
     d_tmr.start()
@@ -266,15 +211,15 @@ def launch(server_name: str = "Server", ram: int = 8):
 
     return svr, h_tmr, d_tmr
 
-def kill(svr: Server, h_tmr: BackupTimer, d_tmr: BackupTimer):
+def kill(svr: Server, h_tmr: Scheduler, d_tmr: Scheduler):
     """ Kills the server process and all backup timers cleanly
 
     I split this off into it's own function so I can reuse it with different commands
 
     Args:
         svr (Server): Server process
-        h_tmr (BackupTimer): Hourly backup process
-        d_tmr (BackupTimer): Daily backup process
+        h_tmr (Scheduler): Hourly backup process
+        d_tmr (Scheduler): Daily backup process
     """
     logger.warning("Killing Timers...")
     h_tmr.cancel()
@@ -301,20 +246,19 @@ if __name__ == "__main__":
     ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
     for i, op in enumerate(ops):
         print(f"({i}) {op}")
-    # print("0) New World\n")
-    
+
     # Collect Input
     sel = input("Select option: ")
     SERVER_NAME = sel
     RAM = 8
-    
+
     known = False
     if sel in ops:
         known = True
 
     ACTIVE_PATH = os.path.join(DEFAULT_PATH, SERVER_NAME)
     os.makedirs(ACTIVE_PATH, exist_ok=True)
-    
+
     ### LOGGING SECTION ###
     logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
     logFormat.format_logs(logger_name="MCLOG", file_name=logname)
