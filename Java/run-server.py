@@ -13,14 +13,13 @@ import os
 import shutil
 import subprocess
 import sys
-import threading
 import time
 # from tkinter import filedialog
 from typing import Literal
 
 import logFormat
-from scheduler import Scheduler
 from configs import discordsrv, essentialsx, eula, properties
+from scheduler import Scheduler
 
 ACTIVE_PATH: str = ""
 logger: logging.Formatter = None
@@ -112,8 +111,8 @@ class Server():
                 if filename != "":
                     # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
                     parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
-                    s_name = parsed[0]
-                    tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
+                    # s_name = parsed[0]
+                    # tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
                     prev_backup_type = parsed[2]
 
                     if prev_backup_type == "Hourly":
@@ -339,23 +338,23 @@ if __name__ == "__main__":
 
     if not known:
         # Generate Accepted EULA
-        eula(ACTIVE_PATH)
+        eula(world_path=ACTIVE_PATH)
 
         # Start World to generate config files
-        server, h_timer, d_timer = launch(SERVER_NAME, RAM)
+        server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
         time.sleep(5)
         kill(server, h_timer, d_timer)
         
         # Edit initial Server config
-        properties(ACTIVE_PATH)
+        properties(world_path=ACTIVE_PATH, server_type=launcher)
         
         if launcher == "paper":
             # Edit config files for DiscordSRV and EssentialsX.
             # TODO: check to make sure that these plugins are included.
-            discordsrv(ACTIVE_PATH)
-            essentialsx(ACTIVE_PATH)
+            discordsrv(world_path=ACTIVE_PATH)
+            essentialsx(world_path=ACTIVE_PATH)
 
-    server, h_timer, d_timer = launch(SERVER_NAME, RAM)
+    server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
 
     try:
         while True:
@@ -392,7 +391,7 @@ if __name__ == "__main__":
 
             elif command.startswith("restart"):
                 kill(server, h_timer, d_timer)
-                server, h_timer, d_timer = launch(SERVER_NAME, ram=RAM)
+                server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
 
             elif command.startswith("ram"):
                 # Modify the value of dedicated ram
@@ -403,7 +402,7 @@ if __name__ == "__main__":
 
                 # Restart the server
                 kill(server, h_timer, d_timer)
-                server, h_timer, d_timer = launch(SERVER_NAME, ram=RAM)
+                server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
 
             else:
                 server.server_command(command)
