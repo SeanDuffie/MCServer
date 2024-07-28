@@ -19,37 +19,45 @@ logFormat.format_logs(logger_name="MCLOG", file_name=logname)
 logger = logging.getLogger("MCLOG")
 logger.info("Logname: %s", logname)
 
-def backup(zip_filename: str, target_dir: str = None, zip_path: str = None):
+def backup(zip_filename: str, src_dir: str = None, zip_path: str = None):
     """ Compresses the active directory into a zip archive that can be accessed later.
 
     Args:
-        target_dir (str): Path of directory containing the files to compress
+        src_dir (str): Path of directory containing the files to compress
         destination (str): Path of output ZIP archive
 
     Returns:
         bool: Success?
     """
-    if target_dir is None:
-        target_dir = ACTIVE_PATH
+    if src_dir is None:
+        src_dir = ACTIVE_PATH
     if zip_path is None:
         zip_path = f"{BACKUP_PATH}/{zip_filename}.zip"
 
     # Validity Checks
-    assert os.path.isdir(target_dir)
+    assert os.path.isdir(src_dir)
     assert os.path.isdir(zip_path)
 
     # Open Zipfile for writing
     with zipfile.ZipFile(zip_path, 'w') as zip_file:
         # Iterate over the files in the directory
-        for dirpath, _, filenames in os.walk(target_dir):
+        for dirpath, _, filenames in os.walk(src_dir):
+            print(dirpath, filenames)
             for filename in filenames:
+                print(filename)
                 # Acquire the source path
                 src_path = os.path.join(dirpath, filename)
                 # Determine the output path
                 local_path = src_path.replace(ACTIVE_PATH, "")
 
-                # Add each file to the ZIP archive
-                zip_file.write(src_path, local_path)
+                flagged_words = ["Backups"]
+                if flagged_words not in local_path:
+                    print(f"Accepted: {local_path}")
+                    # Add each file to the ZIP archive
+                    zip_file.write(src_path, local_path)
+                else:
+                    print(f"Rejected: {local_path}")
+                    
 
     logger.info("Files compressed into: %s", zip_filename)
 
