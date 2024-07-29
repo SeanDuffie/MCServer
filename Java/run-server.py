@@ -7,118 +7,133 @@
 
     https://www.minecraft.net/en-us/download/server
 """
-import datetime
 import logging
 import os
 import shutil
-import subprocess
-import sys
 import time
 # from tkinter import filedialog
-from typing import Literal
 
 import logFormat
 from configs import discordsrv, essentialsx, eula, properties
 from scheduler import Scheduler
-from pipeline import Pipeline
+from server import Server
 
+### PATH SECTION ###
+TOP_PATH = os.path.dirname(__file__)
+DEFAULT_PATH: str = os.path.join(TOP_PATH, "Worlds")
 ACTIVE_PATH: str = ""
+BACKUP_PATH: str = ""
 logger: logging.Formatter = None
 
 
-class Server():
-    """_summary_
-    """
-    process: subprocess.Popen
+def select_world():
+    # Display Options
+    print("Select World to load. If creating a new world, enter a name that doesn't exist yet.")
+    ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
+    for i, op in enumerate(ops):
+        print(f"({i}) {op}")
 
-    def __init__(self, server_name: str = "Server", ram: int = 8, hcap: int = 6, dcap: int = 3):
-        self.server_name = server_name
-        self.hcap = hcap
-        self.dcap = dcap
-        self.backup_flag = False
+    # Collect Input
+    sel = input("Select option: ")
+    SERVER_NAME = sel
+    RAM = 8
 
-        os.chdir(ACTIVE_PATH)
-        logger.info('Starting server')
-        self.run(ram=ram)
+    known = False
+    if sel in ops:
+        known = True
 
-        logger.info("Server started.")
-        self.p = Pipeline()
+    ACTIVE_PATH = os.path.join(DEFAULT_PATH, SERVER_NAME)
+    os.makedirs(ACTIVE_PATH, exist_ok=True)
+    return known
 
-    def run(self, ram: int = 8):
-        """ Called when the server is launched.
+def generate_world(known: bool):
+    # If new world, set up
+    launcher = ""
+    while launcher not in ['vanilla', 'paper', 'forge']:
+        launcher = input("What launcher will this server use? (vanilla, paper, or forge): ")
+    launch_dir = os.path.join(TOP_PATH, f"versions/{launcher}")
 
-            Launches and attaches the server process to self.process variable.
-            This is called in __init__ and must finish before any interactions with the server can
-            occur.
+    ver_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
+    for i, ver in enumerate(ver_ops):
+        print(f"({i}) {ver}")
+    version = ""
+    while version not in ver_ops:
+        version = input("What type of server will this be? ")
+    ver_dir = os.path.join(launch_dir, version)
+
+    # Copy server jar into active dir
+    for fname in os.listdir(ver_dir):
+        if fname.endswith(".jar"):
+            logger.info("Moving jar '%s' to world '%s'", fname, ACTIVE_PATH)
+            shutil.copyfile(os.path.join(ver_dir, fname), os.path.join(ACTIVE_PATH, fname))
             
-        Args:
-            ram (int): Amount of ram in Gigabytes to allocate for the server.
-        """
-        executable = ""
-        for filename in os.listdir(ACTIVE_PATH):
-            if filename.endswith(".jar"):
-                executable = f"java -Xmx{ram * 1024}m -jar \"{filename}\" nogui"
+    # If not vanilla, allow for addons
+    if launcher != "vanilla":
+        addon_src_dir = os.path.join(ver_dir, "addons")
+        mod_ops = [x for x in os.listdir(addon_src_dir) if os.path.isfile(os.path.join(addon_src_dir, x))]
+        while True:
+            # Skip if no options are available
+            if not mod_ops:
                 break
 
-        if executable == "":
-            logger.error("No Executable Jar file detected! Please add one to 'active' directory")
-            sys.exit(1)
+            # Display options and select one
+            for i, mod in enumerate(mod_ops):
+                print(f"({i}) {mod}")
+            try:
+                mod_num = int(input("What Plugins/Mods do you want? (Leave blank and hit 'enter' to skip): "))
+            except ValueError:
+                break
 
-        logger.info("Running command: %s", executable)
-        self.process = subprocess.Popen(executable, stdin=subprocess.PIPE)
+            # Handle selection
+            if mod_num in range(len(mod_ops)):
+                mod = mod_ops[mod_num]
+                if launcher == "forge":
+                    # Move addon into server mod directory
+                    addon_target_dir = os.path.join(ACTIVE_PATH, "mods")
+                    # shutil.copyfile(os.path.join(addon_src_dir, mod), os.path.join(ACTIVE_PATH, "mods"))
+                elif launcher == "paper":
+                    # Move addon into server mod directory
+                    addon_target_dir = os.path.join(ACTIVE_PATH, "plugins")
+                os.makedirs(addon_target_dir, exist_ok=True)
+                logger.info("Moving addon '%s' to world addon directory '%s'", mod, addon_target_dir)
+                shutil.copyfile(os.path.join(addon_src_dir, mod), os.path.join(addon_target_dir, mod))
+                mod_ops.pop(mod_num)
+            else:
+                logger.error("Addon not in list of options. Please select an index from the following list:")
 
-    def server_command(self, cmd: str):
-        """ Sends a string from the local python script to the server shell process
+    logger.warning("Additional Mods can be added manually later in the './mods' or './plugins' directory")
 
-        Args:
-            cmd (str): The command string to be sent to the server
-        """
-        logger.info("Writing server command: %s", cmd)
-        try:
-            # Write command to the input stream
-            self.process.stdin.write(str.encode(f"{cmd}\n"))
-            self.process.stdin.flush()
-            return True
-        except OSError:
-            logger.error("Error Writing to Server. Is it inactive?")
-            return False
+    # Pick where old backups are and new backups should go
+    BACKUP_PATH = os.path.join(ACTIVE_PATH, "Backups")
+    # # If you want to put the backups in a different place, say on another hard drive, uncomment this
+    # BACKUP_PATH = filedialog.askdirectory(
+    #                         title="Select Backup Directory",
+    #                         initialdir=f"{DEFAULT_PATH}/"
+    # )
+    # assert BACKUP_PATH != ""
+    os.makedirs(name=BACKUP_PATH, exist_ok=True)
 
-    def backup(self, backup_type: Literal["Daily", "Hourly", "Manual", "Restore"]):
-        """_summary_
+    logger.info("World: %s", ACTIVE_PATH)
+    logger.info("Backups: %s", BACKUP_PATH)
+    logger.info("Logname: %s", logname)
 
-        Returns:
-            _type_: _description_
-        """
-        # Flags to ensure that different threads don't step on each other
-        while self.backup_flag:
-            time.sleep(.1)
-        self.backup_flag = True
+    if not known:
+        # Generate Accepted EULA
+        eula(world_path=ACTIVE_PATH)
 
-        # Temporarily Disable Autosave
-        self.server_command(f"say {backup_type} backup starting. World no longer saving...")
-        self.server_command("save-off")
-        self.server_command("save-all")
-        time.sleep(3)
-
-        self.p.delete_old()
-        self.p.backup(backup_type=backup_type)
-
-        # Resume Autosave
-        self.server_command("save-on")
-        self.server_command("say Backup complete. World now saving. ")
-
-        self.backup_flag = False
-        return True
-
-    def restore(self, zip_name: str):
-        # Select zip
+        # Start World to generate config files
+        server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
+        time.sleep(5)
+        kill(server, h_timer, d_timer)
         
-        # Validity Checks
-
-        # return True
-        logger.error("Restore functionality not implemented yet!")
-        return False
-        # return self.p.restore()
+        # Edit initial Server config
+        properties(world_path=ACTIVE_PATH, server_type=launcher)
+        
+        if launcher == "paper":
+            # Edit config files for DiscordSRV and EssentialsX.
+            # TODO: check to make sure that these plugins are included.
+            discordsrv(world_path=ACTIVE_PATH)
+            essentialsx(world_path=ACTIVE_PATH)
 
 def launch(server_name: str = "Server", ram: int = 8):
     """ Launches the server and some parallel tasks to backup at different intervals.
@@ -177,124 +192,17 @@ def kill(svr: Server, h_tmr: Scheduler, d_tmr: Scheduler):
     svr.process.kill()
     logger.warning("Done!")
 
+def handle commands
+
 if __name__ == "__main__":
-    ### PATH SECTION ###
-    TOP_PATH = os.path.dirname(__file__)
-    DEFAULT_PATH = os.path.join(TOP_PATH, "Worlds")
-
-    # Display Options
-    print("Select World to load. If creating a new world, enter a name that doesn't exist yet.")
-    ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
-    for i, op in enumerate(ops):
-        print(f"({i}) {op}")
-
-    # Collect Input
-    sel = input("Select option: ")
-    SERVER_NAME = sel
-    RAM = 8
-
-    known = False
-    if sel in ops:
-        known = True
-
-    ACTIVE_PATH = os.path.join(DEFAULT_PATH, SERVER_NAME)
-    os.makedirs(ACTIVE_PATH, exist_ok=True)
+    known = select_world()
 
     ### LOGGING SECTION ###
     logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
     logFormat.format_logs(logger_name="MCLOG", file_name=logname)
     logger = logging.getLogger("MCLOG")
 
-    # If new world, set up
-    if not known:
-        launcher = ""
-        while launcher not in ['vanilla', 'paper', 'forge']:
-            launcher = input("What launcher will this server use? (vanilla, paper, or forge): ")
-        launch_dir = os.path.join(TOP_PATH, f"versions/{launcher}")
-
-        ver_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
-        for i, ver in enumerate(ver_ops):
-            # logger.info("%d) %s", i, ver)
-            print(f"({i}) {ver}")
-        version = ""
-        while version not in ver_ops:
-            version = input("What type of server will this be? ")
-        ver_dir = os.path.join(launch_dir, version)
-
-        # Copy server jar into active dir
-        for fname in os.listdir(ver_dir):
-            if fname.endswith(".jar"):
-                logger.info("Moving jar '%s' to world '%s'", fname, ACTIVE_PATH)
-                shutil.copyfile(os.path.join(ver_dir, fname), os.path.join(ACTIVE_PATH, fname))
-                
-        # If not vanilla, allow for addons
-        if launcher != "vanilla":
-            addon_src_dir = os.path.join(ver_dir, "addons")
-            mod_ops = [x for x in os.listdir(addon_src_dir) if os.path.isfile(os.path.join(addon_src_dir, x))]
-            while True:
-                # Skip if no options are available
-                if not mod_ops:
-                    break
-
-                # Display options and select one
-                for i, mod in enumerate(mod_ops):
-                    # logger.info("%d) %s", i, mod)
-                    print(f"({i}) {mod}")
-                try:
-                    mod_num = int(input("What Plugins/Mods do you want? (Leave blank and hit 'enter' to skip): "))
-                except ValueError:
-                    break
-
-                # Handle selection
-                if mod_num in range(len(mod_ops)):
-                    mod = mod_ops[mod_num]
-                    if launcher == "forge":
-                        # Move addon into server mod directory
-                        addon_target_dir = os.path.join(ACTIVE_PATH, "mods")
-                        # shutil.copyfile(os.path.join(addon_src_dir, mod), os.path.join(ACTIVE_PATH, "mods"))
-                    elif launcher == "paper":
-                        # Move addon into server mod directory
-                        addon_target_dir = os.path.join(ACTIVE_PATH, "plugins")
-                    os.makedirs(addon_target_dir, exist_ok=True)
-                    logger.info("Moving addon '%s' to world addon directory '%s'", mod, addon_target_dir)
-                    shutil.copyfile(os.path.join(addon_src_dir, mod), os.path.join(addon_target_dir, mod))
-                    mod_ops.pop(mod_num)
-                else:
-                    logger.error("Addon not in list of options. Please select an index from the following list:")
-
-        logger.warning("Additional Mods can be added manually later in the './mods' or './plugins' directory")
-
-    # Pick where old backups are and new backups should go
-    BACKUP_PATH = os.path.join(ACTIVE_PATH, "Backups")
-    # # If you want to put the backups in a different place, say on another hard drive, uncomment this
-    # BACKUP_PATH = filedialog.askdirectory(
-    #                         title="Select Backup Directory",
-    #                         initialdir=f"{DEFAULT_PATH}/"
-    # )
-    # assert BACKUP_PATH != ""
-    os.makedirs(name=BACKUP_PATH, exist_ok=True)
-
-    logger.info("World: %s", ACTIVE_PATH)
-    logger.info("Backups: %s", BACKUP_PATH)
-    logger.info("Logname: %s", logname)
-
-    if not known:
-        # Generate Accepted EULA
-        eula(world_path=ACTIVE_PATH)
-
-        # Start World to generate config files
-        server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
-        time.sleep(5)
-        kill(server, h_timer, d_timer)
-        
-        # Edit initial Server config
-        properties(world_path=ACTIVE_PATH, server_type=launcher)
-        
-        if launcher == "paper":
-            # Edit config files for DiscordSRV and EssentialsX.
-            # TODO: check to make sure that these plugins are included.
-            discordsrv(world_path=ACTIVE_PATH)
-            essentialsx(world_path=ACTIVE_PATH)
+    generate_world(known=KNOWN)
 
     server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
 
@@ -306,10 +214,42 @@ if __name__ == "__main__":
                 server.backup(backup_type="Manual")
 
             elif command.startswith("restore"):
-                backup = command.split(sep=' ', maxsplit=1)[1]
-                # TODO: restore from a certain backup
-                server.backup("Restore")
-                server.restore(backup)
+                # Pull the name from the commandline
+                try:
+                    zip_file = command.split(sep=' ', maxsplit=1)[1]
+                    logger.warning(f"Backup selected: {zip_file}")
+                    if not os.path.isfile(os.path.join(server.p.zip_dir, zip_file)):
+                        logger.error("Backup (%s) doesn't exist! Try picking from the following list:")
+                        zip_file = ""
+                except IndexError:
+                    logger.error("No backup specified!")
+                    zip_file = ""
+                if zip_file == "":
+                    logger.warning("Manually picking backup...")
+                    bak_ops = os.listdir(server.p.zip_dir)
+                    if bak_ops:
+                        for i, it in enumerate(bak_ops):
+                            logger.info("(%s) %s", i, it)
+                        while True:
+                            try:
+                                index = int(input("Select zip file index from list above: "))
+                                zip_file = bak_ops[index]
+                                break
+                            except IndexError:
+                                logger.error("Invalid index! Pick something between %d and %d", 0, len(bak_ops))
+                            except ValueError:
+                                logger.error("Invalid input! Make sure to enter an integer!")
+                    else:
+                        logger.error("No Backup files yet! Back something up and try later.")
+
+                # Take a backup of the current state in case something goes wrong with the backup
+                if server.backup(backup_type="Revert"):
+                    # Kill the running server
+                    kill(svr=server, h_tmr=h_timer, d_tmr=d_timer)
+                    # Unpack the backup file
+                    server.restore(zip_file)
+                    # Re launch the reverted server
+                    server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
 
             elif command.startswith("remaining"):
                 logger.info("Next Daily Backup is %s from now", d_timer.get_remaining())
@@ -357,8 +297,8 @@ if __name__ == "__main__":
                     ("ram", "Modify amount of RAM the server runs on. Default 8. (will restart)"),
                     ("help", "Display a list of commands and notes about usage.")
                 ]
-                for cmd, desc in cmd_lst:
-                    logger.info("- %s: %s")
+                for CMD, desc in cmd_lst:
+                    logger.info("- %s: %s", CMD, desc)
 
             else:
                 server.server_command(command)
