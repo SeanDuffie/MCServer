@@ -94,63 +94,14 @@ class Server():
             time.sleep(.1)
         self.backup_flag = True
 
-        # Grab the starting time for the backup
-        cur_time = datetime.datetime.now()
-
         # Temporarily Disable Autosave
         self.server_command(f"say {backup_type} backup starting. World no longer saving...")
         self.server_command("save-off")
         self.server_command("save-all")
         time.sleep(3)
 
-        # Delete Expired Backups
-        logger.info('Deleting last file')
-        try:
-            hourly = []
-            daily = []
-
-            for filename in os.listdir(BACKUP_PATH):
-                if filename != "":
-                    # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
-                    parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
-                    # s_name = parsed[0]
-                    # tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
-                    prev_backup_type = parsed[2]
-
-                    if prev_backup_type == "Hourly":
-                        hourly.append(filename)
-                    elif prev_backup_type == "Daily":
-                        daily.append(filename)
-                        # os.remove(filename)
-
-            # TODO: Keep track of backup history in a JSON
-            while len(hourly) > self.hcap:
-                os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
-                # logger.debug(hourly)
-            if len(daily) > self.dcap:
-                os.remove(os.path.join(BACKUP_PATH, daily.pop(0)))
-                # logger.debug(daily)
-        except OSError as e:
-            logger.error(e)
-            logger.error("Error Removing Backup")
-
-        # Make the Backup
-        tstmp2 =cur_time.strftime("%Y-%m-%d-%H-%M-%S")
-        backup_name = f"{self.server_name}_{tstmp2}_{backup_type}"
-
-        try:
-            # Create a zip archive of the Minecraft server world
-            shutil.make_archive(
-                base_name=os.path.join(BACKUP_PATH, backup_name),
-                format='zip',
-                root_dir=ACTIVE_PATH,
-                # logger=logger
-            )
-        except PermissionError:
-            # import traceback
-            # logger.error(traceback.format_exc())
-            # logger.error("Permission Error!")
-            pass
+        self.p.delete_old()
+        self.p.backup(backup_type=backup_type)
 
         # Resume Autosave
         self.server_command("save-on")
@@ -160,25 +111,14 @@ class Server():
         return True
 
     def restore(self, zip_name: str):
-        # # Validity Checks
-        # try:
-        #     zip_path = os.path.join(self.zip_dir, zip_name)
-        #     assert os.path.exists(zip_path)
-        # except AssertionError:
-        #     zip_path = zip_name
-        #     try:
-        #         assert os.path.exists(zip_path)
-        #     except AssertionError:
-        #         return False
-
-        # # Open Zipfile for reading
-        # with zipfile.ZipFile(zip_path, 'r') as zip_file:
-        #     zip_file.extractall(TEST_PATH)
-        #     logger.info("Files extracted from: (%s) to (%s)", zip_path, TEST_PATH)
+        # Select zip
+        
+        # Validity Checks
 
         # return True
         logger.error("Restore functionality not implemented yet!")
         return False
+        # return self.p.restore()
 
 def launch(server_name: str = "Server", ram: int = 8):
     """ Launches the server and some parallel tasks to backup at different intervals.

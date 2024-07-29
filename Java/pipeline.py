@@ -30,7 +30,7 @@ class Pipeline:
     Returns:
         _type_: _description_
     """
-    def __init__(self, src_dir: str = ACTIVE_PATH, project_name: str = "Project"):
+    def __init__(self, src_dir: str = ACTIVE_PATH, project_name: str = "Project", hcap: int = 6, dcap: int = 3):
         # Path of directory containing the files to compress
         self.src_dir: str = src_dir
         assert os.path.isdir(self.src_dir)
@@ -39,6 +39,41 @@ class Pipeline:
         self.zip_dir: str = os.path.join(BACKUP_PATH, project_name)
         if not os.path.exists(self.zip_dir):
             os.mkdir(self.zip_dir)
+
+        self.hcap = hcap
+        self.dcap = dcap
+
+    def delete_old(self):
+        """ Checks for and deletes expired backup files """
+        logger.info('Deleting last file')
+        try:
+            hourly = []
+            daily = []
+
+            for filename in os.listdir(BACKUP_PATH):
+                if filename != "":
+                    # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
+                    parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
+                    # s_name = parsed[0]
+                    # tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
+                    prev_backup_type = parsed[2]
+
+                    if prev_backup_type == "Hourly":
+                        hourly.append(filename)
+                    elif prev_backup_type == "Daily":
+                        daily.append(filename)
+                        # os.remove(filename)
+
+            # TODO: Keep track of backup history in a JSON
+            while len(hourly) > self.hcap:
+                os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
+                # logger.debug(hourly)
+            if len(daily) > self.dcap:
+                os.remove(os.path.join(BACKUP_PATH, daily.pop(0)))
+                # logger.debug(daily)
+        except OSError as e:
+            logger.error(e)
+            logger.error("Error Removing Backup")
 
     def backup(self, backup_type: str = "Manual"):
         """ Compresses the active directory into a zip archive that can be accessed later.
@@ -52,8 +87,8 @@ class Pipeline:
         assert backup_type in ["Hourly", "Daily", "Manual", "Revert"]
 
         tstmp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        filename = f"{tstmp}_{backup_type}.zip"
-        zip_path = os.path.join(self.zip_dir, filename)
+        zip_name = f"{tstmp}_{backup_type}.zip"
+        zip_path = os.path.join(self.zip_dir, zip_name)
 
         # Validity Checks
         assert os.path.isdir(self.src_dir)
@@ -63,13 +98,12 @@ class Pipeline:
             # Iterate over the files in the directory
             for dirpath, _, filenames in os.walk(self.src_dir):
                 for filename in filenames:
-                    # TODO: In the future, here is where I should filter unnecessary files
-                    
                     # Acquire the source path
                     src_path = os.path.join(dirpath, filename)
                     # Determine the output path
                     local_path = src_path.replace(self.src_dir, "")
 
+                # TODO: In the future, here is where I should filter unnecessary files
                 flagged_words = ["Backups"]
                 if flagged_words not in local_path:
                     print(f"Accepted: {local_path}")
@@ -79,7 +113,6 @@ class Pipeline:
                     print(f"Rejected: {local_path}")
 
         logger.debug("Files compressed into: (%s)\n\tfrom (%s)", zip_path, self.src_dir)
-
         return True
 
     def restore(self, zip_name: str, target_dir: str = None):
