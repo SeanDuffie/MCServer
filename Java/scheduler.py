@@ -23,7 +23,11 @@ class Scheduler(threading.Timer):
         self.invl = datetime.timedelta(seconds=self.interval)
         self.tnext = self.next_time(self.start_time, self.invl)
 
-        logger.warning("Seconds until First %s Backup: %s", *self.args, (self.tnext - self.tprev).total_seconds())
+        logger.warning(
+            "Seconds until First %s Backup: %s",
+            *self.args,
+            (self.tnext - self.tprev).total_seconds()
+        )
 
     def next_time(self, prev: datetime.datetime, interval: datetime.timedelta):
         """ Calculates the next timestamp that "run" will be active.
@@ -64,7 +68,12 @@ class Scheduler(threading.Timer):
                 second=0,
                 microsecond=0
             )
-        logger.info("Next %s Backup time is at %s (currently %s)", *self.args, nxt, datetime.datetime.now())
+        logger.info(
+            "Next %s Backup time is at %s (currently %s)",
+            *self.args,
+            nxt,
+            datetime.datetime.now()
+        )
         return nxt
 
     def get_remaining(self):
