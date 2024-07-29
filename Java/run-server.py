@@ -346,6 +346,20 @@ if __name__ == "__main__":
                 kill(server, h_timer, d_timer)
                 server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
 
+            elif command.startswith("help"):
+                cmd_lst = [
+                    ("backup", "Manually initiate a backup"),
+                    ("restore", "Manually restore from a previous backup. (will restart)"),
+                    ("remaining", "Get amount of time remaining before next scheduled backups."),
+                    ("hcap", "Set the amount of previous hourly backups that should be kept."),
+                    ("dcap", "Set the amount of previous daily backups that should be kept."),
+                    ("restart", "Manually initiate a server restart. (will restart)"),
+                    ("ram", "Modify amount of RAM the server runs on. Default 8. (will restart)"),
+                    ("help", "Display a list of commands and notes about usage.")
+                ]
+                for cmd, desc in cmd_lst:
+                    logger.info("- %s: %s")
+
             else:
                 server.server_command(command)
     except KeyboardInterrupt:
