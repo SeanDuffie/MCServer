@@ -20,6 +20,7 @@ from typing import Literal
 import logFormat
 from configs import discordsrv, essentialsx, eula, properties
 from scheduler import Scheduler
+from pipeline import Pipeline
 
 ACTIVE_PATH: str = ""
 logger: logging.Formatter = None
@@ -41,6 +42,7 @@ class Server():
         self.run(ram=ram)
 
         logger.info("Server started.")
+        self.p = Pipeline()
 
     def run(self, ram: int = 8):
         """ Called when the server is launched.
