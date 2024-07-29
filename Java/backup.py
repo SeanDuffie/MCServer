@@ -2,53 +2,73 @@
     @author Sean Duffie
     @brief Functions that are responsible for wrapping the backup and restore functionality.
 """
+import datetime
 import logging
 import os
 import zipfile
-
-import logFormat
+from tkinter import filedialog
 
 ### PATH SECTION ###
 DEFAULT_PATH = os.path.dirname(__file__)
-ACTIVE_PATH = f"{DEFAULT_PATH}/project/"
-BACKUP_PATH = f"{DEFAULT_PATH}/backups/"
+ACTIVE_PATH = os.path.join(DEFAULT_PATH, "project")
+TEST_PATH = os.path.join(DEFAULT_PATH, "restore_project")
+BACKUP_PATH = os.path.join(DEFAULT_PATH, "backups")
+if not os.path.isdir(ACTIVE_PATH):
+    os.mkdir(ACTIVE_PATH)
+if not os.path.isdir(BACKUP_PATH):
+    os.mkdir(BACKUP_PATH)
 
 ### LOGGING SECTION ###
-logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
-logFormat.format_logs(logger_name="MCLOG", file_name=logname)
 logger = logging.getLogger("MCLOG")
-logger.info("Logname: %s", logname)
 
-def backup(zip_filename: str, src_dir: str = None, zip_path: str = None):
-    """ Compresses the active directory into a zip archive that can be accessed later.
+# def is_changed(path: str):
+#     pass
 
-    Args:
-        src_dir (str): Path of directory containing the files to compress
-        destination (str): Path of output ZIP archive
+class Pipeline:
+    """_summary_
 
     Returns:
-        bool: Success?
+        _type_: _description_
     """
-    if src_dir is None:
-        src_dir = ACTIVE_PATH
-    if zip_path is None:
-        zip_path = f"{BACKUP_PATH}/{zip_filename}.zip"
+    def __init__(self, src_dir: str = ACTIVE_PATH, project_name: str = "Project"):
+        # Path of directory containing the files to compress
+        self.src_dir: str = src_dir
+        assert os.path.isdir(self.src_dir)
 
-    # Validity Checks
-    assert os.path.isdir(src_dir)
-    assert os.path.isdir(zip_path)
+        # Path of output ZIP archive
+        self.zip_dir: str = os.path.join(BACKUP_PATH, project_name)
+        if not os.path.exists(self.zip_dir):
+            os.mkdir(self.zip_dir)
 
-    # Open Zipfile for writing
-    with zipfile.ZipFile(zip_path, 'w') as zip_file:
-        # Iterate over the files in the directory
-        for dirpath, _, filenames in os.walk(src_dir):
-            print(dirpath, filenames)
-            for filename in filenames:
-                print(filename)
-                # Acquire the source path
-                src_path = os.path.join(dirpath, filename)
-                # Determine the output path
-                local_path = src_path.replace(ACTIVE_PATH, "")
+    def backup(self, backup_type: str = "Manual"):
+        """ Compresses the active directory into a zip archive that can be accessed later.
+
+        Args:
+            backup_type (str): How should this backup be classified? (Hourly, Daily, Manual)
+
+        Returns:
+            bool: Success?
+        """
+        assert backup_type in ["Hourly", "Daily", "Manual", "Revert"]
+
+        tstmp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        filename = f"{tstmp}_{backup_type}.zip"
+        zip_path = os.path.join(self.zip_dir, filename)
+
+        # Validity Checks
+        assert os.path.isdir(self.src_dir)
+
+        # Open Zipfile for writing
+        with zipfile.ZipFile(zip_path, 'w') as zip_file:
+            # Iterate over the files in the directory
+            for dirpath, _, filenames in os.walk(self.src_dir):
+                for filename in filenames:
+                    # TODO: In the future, here is where I should filter unnecessary files
+                    
+                    # Acquire the source path
+                    src_path = os.path.join(dirpath, filename)
+                    # Determine the output path
+                    local_path = src_path.replace(self.src_dir, "")
 
                 flagged_words = ["Backups"]
                 if flagged_words not in local_path:
@@ -57,37 +77,49 @@ def backup(zip_filename: str, src_dir: str = None, zip_path: str = None):
                     zip_file.write(src_path, local_path)
                 else:
                     print(f"Rejected: {local_path}")
-                    
 
-    logger.info("Files compressed into: %s", zip_filename)
+        logger.debug("Files compressed into: (%s)\n\tfrom (%s)", zip_path, self.src_dir)
 
-    return True
+        return True
 
-def restore(zip_filename: str, target_dir: str = None, zip_path: str = None):
-    """ Restores a zip archive to the working directory.
+    def restore(self, zip_name: str, target_dir: str = None):
+        """ Restores a zip archive to the working directory.
 
-    Args:
-        zip_filename (str): Path and filename of the zipfile archive.
-        target_dir (str): Path where the zip file will be extracted to.
+        Args:
+            zip_name (str): Path and filename of the zipfile archive.
 
-    Returns:
-        bool: Success?
-    """
-    if target_dir is None:
-        target_dir = ACTIVE_PATH
-    if zip_path is None:
-        zip_path = f"{BACKUP_PATH}/{zip_filename}.zip"
+        Returns:
+            bool: Success?
+        """
+        if target_dir is None:
+            target_dir = ACTIVE_PATH
 
-    # Validity Checks
-    print(f"{target_dir=}")
-    assert os.path.isdir(target_dir)
-    print(f"{zip_path=}")
-    assert os.path.exists(zip_path)
+        # Validity Checks
+        try:
+            zip_path = os.path.join(self.zip_dir, zip_name)
+            assert os.path.exists(zip_path)
+        except AssertionError:
+            zip_path = zip_name
+            try:
+                assert os.path.exists(zip_path)
+            except AssertionError:
+                return False
 
-    # Open Zipfile for reading
-    with zipfile.ZipFile(zip_path, 'r') as zip_file:
-        zip_file.extractall(target_dir)
+        # Open Zipfile for reading
+        with zipfile.ZipFile(zip_path, 'r') as zip_file:
+            zip_file.extractall(TEST_PATH)
 
-    logger.info("Files extracted from: (%s) to (%s)", zip_path, target_dir)
+        logger.info("Files extracted from: (%s) to (%s)", zip_path, TEST_PATH)
 
-    return True
+        return True
+
+if __name__ == "__main__":
+    p = Pipeline()
+    p.backup()
+    restore_name = filedialog.askopenfilename(
+        initialdir=BACKUP_PATH,
+        title="Select Zip",
+        filetypes=[('Compressed Files', '*.zip')]
+    )
+    if restore_name != "":
+        p.restore(restore_name)
