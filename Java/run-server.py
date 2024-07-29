@@ -192,7 +192,8 @@ def kill(svr: Server, h_tmr: Scheduler, d_tmr: Scheduler):
     svr.process.kill()
     logger.warning("Done!")
 
-def handle commands
+def handle_commands():
+    pass
 
 if __name__ == "__main__":
     known = select_world()
