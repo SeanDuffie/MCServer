@@ -11,12 +11,7 @@ from tkinter import filedialog
 ### PATH SECTION ###
 DEFAULT_PATH = os.path.dirname(__file__)
 ACTIVE_PATH = os.path.join(DEFAULT_PATH, "project")
-TEST_PATH = os.path.join(DEFAULT_PATH, "restore_project")
 BACKUP_PATH = os.path.join(DEFAULT_PATH, "backups")
-if not os.path.isdir(ACTIVE_PATH):
-    os.mkdir(ACTIVE_PATH)
-if not os.path.isdir(BACKUP_PATH):
-    os.mkdir(BACKUP_PATH)
 
 ### LOGGING SECTION ###
 logger = logging.getLogger("MCLOG")
@@ -30,14 +25,14 @@ class Pipeline:
     Returns:
         _type_: _description_
     """
-    def __init__(self, src_dir: str = ACTIVE_PATH, project_name: str = "Project", hcap: int = 6, dcap: int = 3):
+    def __init__(self, src_dir: str = ACTIVE_PATH, zip_dir: str = BACKUP_PATH, project_name: str = "Project", hcap: int = 6, dcap: int = 3):
         # Path of directory containing the files to compress
         self.src_dir: str = src_dir
         assert os.path.isdir(self.src_dir)
 
         # Path of output ZIP archive
-        self.zip_dir: str = os.path.join(BACKUP_PATH, project_name)
-        if not os.path.exists(self.zip_dir):
+        self.zip_dir: str = zip_dir
+        if not os.path.isdir(self.zip_dir):
             os.mkdir(self.zip_dir)
 
         self.hcap = hcap
@@ -45,35 +40,41 @@ class Pipeline:
 
     def delete_old(self):
         """ Checks for and deletes expired backup files """
-        logger.info('Deleting last file')
-        try:
-            hourly = []
-            daily = []
+        logger.info('Deleting old files...')
 
-            for filename in os.listdir(BACKUP_PATH):
-                if filename != "":
-                    # Extract useful info from path, first cut off directory, then cut off the filetype. Then separate info
+        # Generate list of existing backups that require frequent purges.
+        hourly = []
+        daily = []
+        for filename in os.listdir(BACKUP_PATH):
+            if filename != "":
+                try:
+                    # Extract useful info from path
                     parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
                     # s_name = parsed[0]
                     # tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
                     prev_backup_type = parsed[2]
+                except IndexError:
+                    logger.error("Filename has incorrect format: %s", filename)
+                    logger.error("Should be {server_name}_{timestamp}_{backup_type}")
+                    return False
 
-                    if prev_backup_type == "Hourly":
-                        hourly.append(filename)
-                    elif prev_backup_type == "Daily":
-                        daily.append(filename)
-                        # os.remove(filename)
+                if prev_backup_type == "Hourly":
+                    hourly.append(filename)
+                elif prev_backup_type == "Daily":
+                    daily.append(filename)
+                    # os.remove(filename)
 
-            # TODO: Keep track of backup history in a JSON
+        # Remove the files that exceed the backup limits
+        try:
             while len(hourly) > self.hcap:
                 os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
-                # logger.debug(hourly)
-            if len(daily) > self.dcap:
+            while len(daily) > self.dcap:
                 os.remove(os.path.join(BACKUP_PATH, daily.pop(0)))
-                # logger.debug(daily)
+            return True
         except OSError as e:
             logger.error(e)
-            logger.error("Error Removing Backup")
+            logger.error("Error Removing Backups!")
+            return False
 
     def backup(self, backup_type: str = "Manual"):
         """ Compresses the active directory into a zip archive that can be accessed later.
@@ -84,14 +85,22 @@ class Pipeline:
         Returns:
             bool: Success?
         """
-        assert backup_type in ["Hourly", "Daily", "Manual", "Revert"]
+        try:
+            assert backup_type in ["Hourly", "Daily", "Manual", "Revert"]
+        except AssertionError:
+            logger.error("Invalid Backup Type: %s", backup_type)
+            return False
 
         tstmp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         zip_name = f"{tstmp}_{backup_type}.zip"
         zip_path = os.path.join(self.zip_dir, zip_name)
 
         # Validity Checks
-        assert os.path.isdir(self.src_dir)
+        try:
+            assert os.path.isdir(self.src_dir)
+        except AssertionError:
+            logger.error("Source Path for backup is not a directory! %s", self.src_dir)
+            return False
 
         # Open Zipfile for writing
         with zipfile.ZipFile(zip_path, 'w') as zip_file:
@@ -104,13 +113,14 @@ class Pipeline:
                     local_path = src_path.replace(self.src_dir, "")
 
                 # TODO: In the future, here is where I should filter unnecessary files
-                flagged_words = ["Backups"]
-                if flagged_words not in local_path:
-                    print(f"Accepted: {local_path}")
+                blacklist = ["Backups"]
+                # whitelist = ["world", "world_nether", "world_the_end"]
+                if blacklist not in local_path:
+                    logger.warning("Accepted: %s", local_path)
                     # Add each file to the ZIP archive
                     zip_file.write(src_path, local_path)
                 else:
-                    print(f"Rejected: {local_path}")
+                    logger.warning("Rejected: %s", local_path)
 
         logger.debug("Files compressed into: (%s)\n\tfrom (%s)", zip_path, self.src_dir)
         return True
@@ -125,7 +135,9 @@ class Pipeline:
             bool: Success?
         """
         if target_dir is None:
-            target_dir = ACTIVE_PATH
+            target_dir = self.src_dir
+        if not os.path.isdir(target_dir):
+            logger.error("Target directory doesn't exist! %s", target_dir)
 
         # Validity Checks
         try:
@@ -134,15 +146,19 @@ class Pipeline:
         except AssertionError:
             zip_path = zip_name
             try:
-                assert os.path.exists(zip_path)
+                assert os.path.exists(zip_name)
+                zip_path = zip_name
             except AssertionError:
+                logger.error("Zip File requested does not exist!")
+                logger.error("Zip Dir: %s", self.zip_dir)
+                logger.error("Zip Name: %s", zip_name)
                 return False
 
         # Open Zipfile for reading
         with zipfile.ZipFile(zip_path, 'r') as zip_file:
-            zip_file.extractall(TEST_PATH)
+            zip_file.extractall(target_dir)
 
-        logger.info("Files extracted from: (%s) to (%s)", zip_path, TEST_PATH)
+        logger.info("Files extracted from: (%s) to (%s)", zip_path, target_dir)
 
         return True
 
