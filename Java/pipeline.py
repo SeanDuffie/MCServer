@@ -20,23 +20,22 @@ logger = logging.getLogger("MCLOG")
 #     pass
 
 class Pipeline:
-    """_summary_
-
-    Returns:
-        _type_: _description_
+    """ A Pipeline object wraps the process of backing up or restoring project files.
+    This will provide a function for the Scheduler process to call 
     """
-    def __init__(self, src_dir: str = ACTIVE_PATH, zip_dir: str = BACKUP_PATH, project_name: str = "Project", hcap: int = 6, dcap: int = 3):
+    def __init__(self, src_dir: str = ACTIVE_PATH, zip_dir: str = BACKUP_PATH):
         # Path of directory containing the files to compress
         self.src_dir: str = src_dir
         assert os.path.isdir(self.src_dir)
+        self.project_name: str = os.path.basename(self.src_dir)
 
         # Path of output ZIP archive
         self.zip_dir: str = zip_dir
         if not os.path.isdir(self.zip_dir):
             os.mkdir(self.zip_dir)
 
-        self.hcap = hcap
-        self.dcap = dcap
+        self.hcap = 6
+        self.dcap = 3
 
     def delete_old(self):
         """ Checks for and deletes expired backup files """
@@ -112,7 +111,7 @@ class Pipeline:
                     # Determine the output path
                     local_path = src_path.replace(self.src_dir, "")
 
-                # TODO: In the future, here is where I should filter unnecessary files
+                # In the future, here is where I should filter unnecessary files
                 blacklist = ["Backups"]
                 # whitelist = ["world", "world_nether", "world_the_end"]
                 if blacklist not in local_path:
