@@ -19,18 +19,19 @@ class Server():
     """
     process: subprocess.Popen
 
-    def __init__(self, server_name: str = "Server", ram: int = 8, hcap: int = 6, dcap: int = 3):
-        self.server_name = server_name
+    def __init__(self, server_path: str, ram: int = 8, hcap: int = 6, dcap: int = 3):
+        self.server_path = server_path
+        self.server_name = os.path.basename(server_path)
         self.hcap = hcap
         self.dcap = dcap
         self.backup_flag = False
 
-        os.chdir(ACTIVE_PATH)
+        os.chdir(self.server_path)
         logger.info('Starting server')
         self.run(ram=ram)
 
         logger.info("Server started.")
-        self.p = Pipeline(src_dir=ACTIVE_PATH, project_name=server_name)
+        self.p = Pipeline(src_dir=self.server_path, project_name=self.server_name)
 
     def run(self, ram: int = 8):
         """ Called when the server is launched.
@@ -43,7 +44,7 @@ class Server():
             ram (int): Amount of ram in Gigabytes to allocate for the server.
         """
         executable = ""
-        for filename in os.listdir(ACTIVE_PATH):
+        for filename in os.listdir(self.server_path):
             if filename.endswith(".jar"):
                 executable = f"java -Xmx{ram * 1024}m -jar \"{filename}\" nogui"
                 break
