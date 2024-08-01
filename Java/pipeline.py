@@ -43,7 +43,7 @@ class Pipeline:
         # Generate list of existing backups that require frequent purges.
         hourly = []
         daily = []
-        for filename in os.listdir(BACKUP_PATH):
+        for filename in os.listdir(self.zip_dir):
             if filename != "":
                 try:
                     # Extract useful info from path
@@ -52,6 +52,7 @@ class Pipeline:
                     # tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
                     prev_backup_type = parsed[2]
                 except IndexError:
+                    # FIXME: Why is filename always "Project???" (might already be fixed)
                     logger.error("Filename has incorrect format: %s", filename)
                     logger.error("Should be {server_name}_{timestamp}_{backup_type}")
                     return False
@@ -65,9 +66,9 @@ class Pipeline:
         # Remove the files that exceed the backup limits
         try:
             while len(hourly) > self.hcap:
-                os.remove(os.path.join(BACKUP_PATH, hourly.pop(0)))
+                os.remove(os.path.join(self.zip_dir, hourly.pop(0)))
             while len(daily) > self.dcap:
-                os.remove(os.path.join(BACKUP_PATH, daily.pop(0)))
+                os.remove(os.path.join(self.zip_dir, daily.pop(0)))
             return True
         except OSError as e:
             logger.error(e)
