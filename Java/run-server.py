@@ -11,7 +11,6 @@ import logging
 import os
 import shutil
 import time
-# from tkinter import filedialog
 
 import logFormat
 from configs import discordsrv, essentialsx, eula, properties
@@ -27,6 +26,13 @@ logger: logging.Formatter = None
 
 
 def select_world():
+    """ Prompts the user to choose which world they want to load.
+
+    Returns:
+        str: The name of the world to load.
+        int: Amount of ram to dedicate, in GigaBytes.
+        bool: Does the world already exist or should a new one be created?
+    """
     # Display Options
     print("Select World to load. If creating a new world, enter a name that doesn't exist yet.")
     ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
@@ -34,19 +40,23 @@ def select_world():
         print(f"({i}) {op}")
 
     # Collect Input
-    sel = input("Select option: ")
-    SERVER_NAME = sel
-    RAM = 8
+    sel = input("Enter World Name: ")
+    server_name = sel
+    ram = 8
 
     known = False
     if sel in ops:
         known = True
 
-    ACTIVE_PATH = os.path.join(DEFAULT_PATH, SERVER_NAME)
-    os.makedirs(ACTIVE_PATH, exist_ok=True)
-    return known
+    return server_name, ram, known
 
-def generate_world(known: bool):
+def generate_world():
+    """ Generates a new world from scratch.
+    
+    Prompts the user to decide between vanilla, paper, and forge.
+    Then prompts the user to pick a version to run.
+    Finally loads up any mods that can be pre-installed and pre-configured.
+    """
     # If new world, set up
     launcher = ""
     while launcher not in ['vanilla', 'paper', 'forge']:
@@ -66,11 +76,13 @@ def generate_world(known: bool):
         if fname.endswith(".jar"):
             logger.info("Moving jar '%s' to world '%s'", fname, ACTIVE_PATH)
             shutil.copyfile(os.path.join(ver_dir, fname), os.path.join(ACTIVE_PATH, fname))
-            
+
     # If not vanilla, allow for addons
     if launcher != "vanilla":
         addon_src_dir = os.path.join(ver_dir, "addons")
-        mod_ops = [x for x in os.listdir(addon_src_dir) if os.path.isfile(os.path.join(addon_src_dir, x))]
+        mod_ops = [
+            x for x in os.listdir(addon_src_dir) if os.path.isfile(os.path.join(addon_src_dir, x))
+        ]
         while True:
             # Skip if no options are available
             if not mod_ops:
@@ -80,7 +92,9 @@ def generate_world(known: bool):
             for i, mod in enumerate(mod_ops):
                 print(f"({i}) {mod}")
             try:
-                mod_num = int(input("What Plugins/Mods do you want? (Leave blank and hit 'enter' to skip): "))
+                mod_num = int(
+                    input("What Plugins/Mods do you want? (Leave blank and hit 'enter' to skip): ")
+                )
             except ValueError:
                 break
 
@@ -90,52 +104,46 @@ def generate_world(known: bool):
                 if launcher == "forge":
                     # Move addon into server mod directory
                     addon_target_dir = os.path.join(ACTIVE_PATH, "mods")
-                    # shutil.copyfile(os.path.join(addon_src_dir, mod), os.path.join(ACTIVE_PATH, "mods"))
                 elif launcher == "paper":
                     # Move addon into server mod directory
                     addon_target_dir = os.path.join(ACTIVE_PATH, "plugins")
                 os.makedirs(addon_target_dir, exist_ok=True)
-                logger.info("Moving addon '%s' to world addon directory '%s'", mod, addon_target_dir)
-                shutil.copyfile(os.path.join(addon_src_dir, mod), os.path.join(addon_target_dir, mod))
+                logger.info(
+                    "Moving addon '%s' to world addon directory '%s'",
+                    mod,
+                    addon_target_dir
+                )
+                shutil.copyfile(
+                    os.path.join(addon_src_dir, mod),
+                    os.path.join(addon_target_dir, mod)
+                )
                 mod_ops.pop(mod_num)
             else:
                 logger.error("Addon not in list of options. Please select an index from the following list:")
 
     logger.warning("Additional Mods can be added manually later in the './mods' or './plugins' directory")
-
-    # Pick where old backups are and new backups should go
-    BACKUP_PATH = os.path.join(ACTIVE_PATH, "Backups")
-    # # If you want to put the backups in a different place, say on another hard drive, uncomment this
-    # BACKUP_PATH = filedialog.askdirectory(
-    #                         title="Select Backup Directory",
-    #                         initialdir=f"{DEFAULT_PATH}/"
-    # )
-    # assert BACKUP_PATH != ""
-    os.makedirs(name=BACKUP_PATH, exist_ok=True)
-
     logger.info("World: %s", ACTIVE_PATH)
     logger.info("Backups: %s", BACKUP_PATH)
     logger.info("Logname: %s", logname)
 
-    if not known:
-        # Generate Accepted EULA
-        eula(world_path=ACTIVE_PATH)
+    # Generate Accepted EULA
+    eula(world_path=ACTIVE_PATH)
 
-        # Start World to generate config files
-        server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
-        time.sleep(5)
-        kill(server, h_timer, d_timer)
-        
-        # Edit initial Server config
-        properties(world_path=ACTIVE_PATH, server_type=launcher)
-        
-        if launcher == "paper":
-            # Edit config files for DiscordSRV and EssentialsX.
-            # TODO: check to make sure that these plugins are included.
-            discordsrv(world_path=ACTIVE_PATH)
-            essentialsx(world_path=ACTIVE_PATH)
+    # Start World to generate config files
+    temp_s, temp_h, temp_d = launch(server_path=ACTIVE_PATH, zip_dir=BACKUP_PATH, ram=RAM)
+    time.sleep(5)
+    kill(temp_s, temp_h, temp_d)
 
-def launch(server_name: str = "Server", ram: int = 8):
+    # Edit initial Server config
+    properties(world_path=ACTIVE_PATH, server_type=launcher)
+
+    if launcher == "paper":
+        # Edit config files for DiscordSRV and EssentialsX.
+        # TODO: check to make sure that these plugins are included.
+        discordsrv(world_path=ACTIVE_PATH)
+        essentialsx(world_path=ACTIVE_PATH)
+
+def launch(server_path: str, zip_dir: str, ram: int = 8):
     """ Launches the server and some parallel tasks to backup at different intervals.
 
     I split this off into it's own function so I can reuse it with different commands.
@@ -146,7 +154,7 @@ def launch(server_name: str = "Server", ram: int = 8):
         Scheduler: Daily backup timer
     """
     # Launch the server
-    svr = Server(server_name=server_name, ram=ram)
+    svr = Server(server_path=server_path, zip_dir=zip_dir, ram=ram)
 
     # Wait for the server to be active. Until it is, it will reject any attempted messages
     c = 10
@@ -193,19 +201,36 @@ def kill(svr: Server, h_tmr: Scheduler, d_tmr: Scheduler):
     logger.warning("Done!")
 
 def handle_commands():
-    pass
+    """ Handle user inputs in an isolated function. """
+    logger.error("Handle Commands has not been implemented yet!")
 
 if __name__ == "__main__":
-    known = select_world()
+    SERVER_NAME, RAM, KNOWN = select_world()
+    ACTIVE_PATH = os.path.join(DEFAULT_PATH, SERVER_NAME)
+    os.makedirs(ACTIVE_PATH, exist_ok=True)
 
     ### LOGGING SECTION ###
     logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
     logFormat.format_logs(logger_name="MCLOG", file_name=logname)
     logger = logging.getLogger("MCLOG")
 
-    generate_world(known=KNOWN)
+    BACKUP_PATH = os.path.join(DEFAULT_PATH, "Backups")
+    # # If you want to put the backups in a different place or drive, uncomment this
+    # import sys
+    # from tkinter import filedialog
+    # BACKUP_PATH = filedialog.askdirectory(
+    #                         title="Select Backup Directory",
+    #                         initialdir=f"{DEFAULT_PATH}/"
+    # )
+    # if BACKUP_PATH == "":
+    #     logger.error("No backup path selected!")
+    #     sys.exit()
+    os.makedirs(name=BACKUP_PATH, exist_ok=True)
 
-    server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
+    if not KNOWN:
+        generate_world()
+
+    server, h_timer, d_timer = launch(server_path=ACTIVE_PATH, zip_dir=BACKUP_PATH, ram=RAM)
 
     try:
         while True:
@@ -217,27 +242,34 @@ if __name__ == "__main__":
             elif command.startswith("restore"):
                 # Pull the name from the commandline
                 try:
-                    zip_file = command.split(sep=' ', maxsplit=1)[1]
-                    logger.warning(f"Backup selected: {zip_file}")
-                    if not os.path.isfile(os.path.join(server.p.zip_dir, zip_file)):
-                        logger.error("Backup (%s) doesn't exist! Try picking from the following list:")
-                        zip_file = ""
+                    ZIP_FILE = command.split(sep=' ', maxsplit=1)[1]
+                    logger.warning("Backup selected: %s", ZIP_FILE)
+                    if not os.path.isfile(os.path.join(server.p.zip_dir, ZIP_FILE)):
+                        logger.error(
+                            "Backup (%s) doesn't exist! Try picking from the following list:",
+                            ZIP_FILE
+                        )
+                        ZIP_FILE = ""
                 except IndexError:
                     logger.error("No backup specified!")
-                    zip_file = ""
-                if zip_file == "":
+                    ZIP_FILE = ""
+                if ZIP_FILE == "":
                     logger.warning("Manually picking backup...")
                     bak_ops = os.listdir(server.p.zip_dir)
                     if bak_ops:
-                        for i, it in enumerate(bak_ops):
-                            logger.info("(%s) %s", i, it)
+                        for I, IT in enumerate(bak_ops):
+                            logger.info("(%s) %s", I, IT)
                         while True:
                             try:
                                 index = int(input("Select zip file index from list above: "))
-                                zip_file = bak_ops[index]
+                                ZIP_FILE = bak_ops[index]
                                 break
                             except IndexError:
-                                logger.error("Invalid index! Pick something between %d and %d", 0, len(bak_ops))
+                                logger.error(
+                                    "Invalid index! Pick something between %d and %d",
+                                    0,
+                                    len(bak_ops)
+                                )
                             except ValueError:
                                 logger.error("Invalid input! Make sure to enter an integer!")
                     else:
@@ -245,12 +277,8 @@ if __name__ == "__main__":
 
                 # Take a backup of the current state in case something goes wrong with the backup
                 if server.backup(backup_type="Revert"):
-                    # Kill the running server
-                    kill(svr=server, h_tmr=h_timer, d_tmr=d_timer)
                     # Unpack the backup file
-                    server.restore(zip_file)
-                    # Re launch the reverted server
-                    server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
+                    server.restore(ZIP_FILE)
 
             elif command.startswith("remaining"):
                 logger.info("Next Daily Backup is %s from now", d_timer.get_remaining())
@@ -274,7 +302,11 @@ if __name__ == "__main__":
 
             elif command.startswith("restart"):
                 kill(server, h_timer, d_timer)
-                server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
+                server, h_timer, d_timer = launch(
+                    server_path=ACTIVE_PATH,
+                    zip_dir=BACKUP_PATH,
+                    ram=RAM
+                )
 
             elif command.startswith("ram"):
                 # Modify the value of dedicated ram
@@ -285,7 +317,11 @@ if __name__ == "__main__":
 
                 # Restart the server
                 kill(server, h_timer, d_timer)
-                server, h_timer, d_timer = launch(server_name=SERVER_NAME, ram=RAM)
+                server, h_timer, d_timer = launch(
+                    server_path=ACTIVE_PATH,
+                    zip_dir=BACKUP_PATH,
+                    ram=RAM
+                )
 
             elif command.startswith("help"):
                 cmd_lst = [
