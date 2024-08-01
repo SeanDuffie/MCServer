@@ -1,3 +1,7 @@
+""" @file test.py
+    @author Sean Duffie
+    @brief A quick script to test running the forge installation jar.
+"""
 import os
 import subprocess
 from tkinter import filedialog
@@ -17,7 +21,6 @@ filename = filedialog.askopenfilename(
 target_dir = filedialog.askdirectory(
     title="Select Install Location",
     initialdir=f"{DEFAULT_PATH}/"
-    
 )
 installer = f"java -jar \"{filename}\" --installServer --target {target_dir}"
 executable = f"java -Xmx{8 * 1024}m -jar \"{filename}\" nogui"
