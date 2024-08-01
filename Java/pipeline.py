@@ -6,7 +6,6 @@ import datetime
 import logging
 import os
 import zipfile
-from tkinter import filedialog
 
 ### PATH SECTION ###
 DEFAULT_PATH = os.path.dirname(__file__)
@@ -162,8 +161,11 @@ class Pipeline:
         return True
 
 if __name__ == "__main__":
+    from tkinter import filedialog
+
     p = Pipeline()
     p.backup()
+
     restore_name = filedialog.askopenfilename(
         initialdir=BACKUP_PATH,
         title="Select Zip",
