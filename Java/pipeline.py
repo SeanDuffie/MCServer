@@ -113,6 +113,7 @@ class Pipeline:
                 # In the future, here is where I should filter unnecessary files
                 blacklist = ["Backups"]
                 # whitelist = ["world", "world_nether", "world_the_end"]
+                # FIXME: checking for strings in list as substrings of another list
                 if blacklist not in local_path:
                     logger.warning("Accepted: %s", local_path)
                     # Add each file to the ZIP archive
