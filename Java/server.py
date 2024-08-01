@@ -15,11 +15,12 @@ from pipeline import Pipeline
 logger = logging.getLogger("MCServer")
 
 class Server():
-    """_summary_
+    """ The Server object provides a wrapper for functions related to the minecraft server jar
+        subprocess.
     """
     process: subprocess.Popen
 
-    def __init__(self, server_path: str, ram: int = 8, hcap: int = 6, dcap: int = 3):
+    def __init__(self, server_path: str, zip_dir: str, ram: int = 8, hcap: int = 6, dcap: int = 3):
         self.server_path = server_path
         self.server_name = os.path.basename(server_path)
         self.hcap = hcap
@@ -31,7 +32,7 @@ class Server():
         self.run(ram=ram)
 
         logger.info("Server started.")
-        self.p = Pipeline(src_dir=self.server_path, project_name=self.server_name)
+        self.p = Pipeline(src_dir=self.server_path, zip_dir=zip_dir)
 
     def run(self, ram: int = 8):
         """ Called when the server is launched.
@@ -56,6 +57,13 @@ class Server():
         logger.info("Running command: %s", executable)
         self.process = subprocess.Popen(executable, stdin=subprocess.PIPE)
 
+    def stop(self):
+        """ Sends the stop command to the server.
+            I broke this out into an external function in case other steps or features are added
+            later.
+        """
+        self.server_command("stop")
+
     def server_command(self, cmd: str):
         """ Sends a string from the local python script to the server shell process
 
@@ -73,10 +81,11 @@ class Server():
             return False
 
     def backup(self, backup_type: Literal["Daily", "Hourly", "Manual", "Restore"]):
-        """_summary_
+        """ Temporarily pauses the server autosaving to prevent corruption,
+            Then backs up the server using the Pipeline.backup function.
 
         Returns:
-            _type_: _description_
+            bool: Did the backup succeed?
         """
         # Flags to ensure that different threads don't step on each other
         while self.backup_flag:
@@ -90,22 +99,34 @@ class Server():
         time.sleep(3)
 
         self.p.delete_old()
-        self.p.backup(backup_type=backup_type)
+        check = self.p.backup(backup_type=backup_type)
 
         # Resume Autosave
         self.server_command("save-on")
         self.server_command("say Backup complete. World now saving. ")
 
         self.backup_flag = False
-        return True
+        if check:
+            return True
+        logger.error("There was a failure in the backup function!")
+        return False
 
     def restore(self, zip_name: str):
-        """_summary_
+        """ Stops the server, calls the Pipeline restore function, and restores it.
 
         Args:
-            zip_name (str): _description_
+            zip_name (str): Name of the file that is being restored.
 
         Returns:
-            _type_: _description_
+            bool: Did the restore succeed?
         """
-        return self.p.restore(zip_name=zip_name)
+        # Stop the server and wait
+        self.stop()
+        # Delete any conflicting files
+        # Call the Pipeline restore function
+        check: bool = self.p.restore(zip_name=zip_name)
+        if check:
+            self.run()
+        else:
+            logger.error("Something went wrong with the restore! Attempting to revert changes...")
+        return check
