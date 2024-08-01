@@ -177,6 +177,8 @@ def discordsrv(world_path: str = DEFAULT_PATH):
     Args:
         world_path (str, optional): Path to the world that is being run. Defaults to DEFAULT_PATH.
     """
+    # TODO: Add error handling or validation for environment file
+
     # Check that the server.properties file has already been generated
     alertfile = os.path.join(world_path, "plugins\\DiscordSRV\\alerts.yml")
     configfile = os.path.join(world_path, "plugins\\DiscordSRV\\config.yml")
@@ -278,9 +280,9 @@ def essentialsx(world_path: str = DEFAULT_PATH):
         # config["sethome-multiple"]["staff"] = input("How many staff homes? ")
         config["compass-towards-home-perm"] = True
         config["confirm-home-overwrite"] = True
-        # TODO: Protect
-        # TODO: Disable phantom?
-        # TODO: Spawn + New Players
+        # Protect
+        # Disable phantom?
+        # Spawn + New Players
 
     # Output changes to file
     with open(file=configfile, mode='w+', encoding='utf_8') as f:
