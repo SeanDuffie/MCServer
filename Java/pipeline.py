@@ -29,7 +29,7 @@ class Pipeline:
         self.project_name: str = os.path.basename(self.src_dir)
 
         # Path of output ZIP archive
-        self.zip_dir: str = zip_dir
+        self.zip_dir: str = os.path.join(zip_dir, self.project_name)
         if not os.path.isdir(self.zip_dir):
             os.mkdir(self.zip_dir)
 
@@ -47,12 +47,10 @@ class Pipeline:
             if filename != "":
                 try:
                     # Extract useful info from path
-                    parsed = os.path.basename(filename).split(".", 2)[0].split("_", 3)
-                    # s_name = parsed[0]
-                    # tstmp = datetime.datetime.strptime(parsed[1], "%Y-%m-%d-%H-%M-%S")
-                    prev_backup_type = parsed[2]
+                    parsed = os.path.basename(filename).split(".", 2)[0].split("_", 2)
+                    # tstmp = datetime.datetime.strptime(parsed[0], "%Y-%m-%d-%H-%M-%S")
+                    prev_backup_type = parsed[1]
                 except IndexError:
-                    # FIXME: Why is filename always "Project???" (might already be fixed)
                     logger.error("Filename has incorrect format: %s", filename)
                     logger.error("Should be {server_name}_{timestamp}_{backup_type}")
                     return False
@@ -66,8 +64,10 @@ class Pipeline:
         # Remove the files that exceed the backup limits
         try:
             while len(hourly) > self.hcap:
+                logger.info("Removing Hourly Backup: %s", os.path.join(self.zip_dir, hourly.pop(0)))
                 os.remove(os.path.join(self.zip_dir, hourly.pop(0)))
             while len(daily) > self.dcap:
+                logger.info("Removing Daily Backup: %s", os.path.join(self.zip_dir, daily.pop(0)))
                 os.remove(os.path.join(self.zip_dir, daily.pop(0)))
             return True
         except OSError as e:
@@ -111,16 +111,22 @@ class Pipeline:
                     # Determine the output path
                     local_path = src_path.replace(self.src_dir, "")
 
-                # In the future, here is where I should filter unnecessary files
-                blacklist = ["Backups"]
+                # Filter files included in the zip file.
+                # # NOTE: Comment out either whitelist or blacklist for different behavior.
                 # whitelist = ["world", "world_nether", "world_the_end"]
-                # FIXME: checking for strings in list as substrings of another list
-                if blacklist not in local_path:
-                    logger.warning("Accepted: %s", local_path)
+                # if any(x in local_path for x in whitelist):
+                #     logger.warning("Whitelist Accepted: %s", local_path)
+                #     # Add each file to the ZIP archive
+                #     zip_file.write(src_path, local_path)
+                # else:
+                #     logger.warning("Whitelist Rejected: %s", local_path)
+                blacklist = ["Backups"]
+                if all(x not in local_path for x in blacklist):
+                    # logger.warning("Blacklist Accepted: %s", local_path)
                     # Add each file to the ZIP archive
                     zip_file.write(src_path, local_path)
                 else:
-                    logger.warning("Rejected: %s", local_path)
+                    logger.warning("Blacklist Rejected: %s", local_path)
 
         logger.debug("Files compressed into: (%s)\n\tfrom (%s)", zip_path, self.src_dir)
         return True
