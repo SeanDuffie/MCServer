@@ -15,10 +15,10 @@ DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "Worlds/Server")
 logger = logging.getLogger("MCLOG")
 
 ############ GET ENVIRONMENT VARIABLES ############
-RTDIR = os.path.dirname(__file__)
-if not load_dotenv(dotenv_path=f"{RTDIR}/.env"):
+ENV_DIR = os.path.join(os.path.dirname(__file__), ".env")
+if not load_dotenv(dotenv_path=ENV_DIR):
     logger.warning("No Environment file detected! Generating a new one...")
-    with open(file=".env", mode="w", encoding="utf_8") as f:
+    with open(file=ENV_DIR, mode="w", encoding="utf_8") as ENV_FILE:
         pass  # Do nothing, just create the file
 ###################################################
 
@@ -183,20 +183,20 @@ def discordsrv(world_path: str = DEFAULT_PATH):
     Args:
         world_path (str, optional): Path to the world that is being run. Defaults to DEFAULT_PATH.
     """
-    # TODO: Add error handling or validation for environment file
+    # Validation for environment file. If values don't exist, generate and save them!
     discord_token = os.getenv("DISCORD_TOKEN")
     if discord_token is None:
         discord_token = input("Enter the Discord Token: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
-            key_to_set="PUBLIC_CHANNEL",
+            dotenv_path=ENV_DIR,
+            key_to_set="DISCORD_TOKEN",
             value_to_set=discord_token
         )
     public_channel = os.getenv("PUBLIC_CHANNEL")
     if public_channel is None:
         public_channel = input("Enter the Channel ID of the Public Discord Channel: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
+            dotenv_path=ENV_DIR,
             key_to_set="PUBLIC_CHANNEL",
             value_to_set=public_channel
         )
@@ -204,56 +204,56 @@ def discordsrv(world_path: str = DEFAULT_PATH):
     if admin_channel is None:
         admin_channel = input("Enter the Channel ID of the Admin Discord Channel: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
-            key_to_set="PUBLIC_CHANNEL",
+            dotenv_path=ENV_DIR,
+            key_to_set="ADMIN_CHANNEL",
             value_to_set=admin_channel
         )
     link_channel = os.getenv("LINK_CHANNEL")
     if link_channel is None:
         link_channel = input("Enter the Channel ID of the Account Linking Channel: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
-            key_to_set="PUBLIC_CHANNEL",
+            dotenv_path=ENV_DIR,
+            key_to_set="LINK_CHANNEL",
             value_to_set=link_channel
         )
     console_channel = os.getenv("CONSOLE_CHANNEL")
     if console_channel is None:
         console_channel = input("Enter the Channel ID of the Server Console Channel: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
-            key_to_set="PUBLIC_CHANNEL",
+            dotenv_path=ENV_DIR,
+            key_to_set="CONSOLE_CHANNEL",
             value_to_set=public_channel
         )
     voice_category = os.getenv("VOICE_CATEGORY")
     if voice_category is None:
         voice_category = input("Enter the Category ID of the proximity voice category: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
-            key_to_set="PUBLIC_CHANNEL",
+            dotenv_path=ENV_DIR,
+            key_to_set="VOICE_CATEGORY",
             value_to_set=public_channel
         )
     lobby_channel = os.getenv("LOBBY_CHANNEL")
     if lobby_channel is None:
         lobby_channel = input("Enter the Voice Channel ID of the Proximity Lobby: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
-            key_to_set="PUBLIC_CHANNEL",
+            dotenv_path=ENV_DIR,
+            key_to_set="LOBBY_CHANNEL",
             value_to_set=public_channel
         )
     invite_link = os.getenv("INVITE_LINK")
     if invite_link is None:
         invite_link = input("Enter the Discord server invite link: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
-            key_to_set="PUBLIC_CHANNEL",
+            dotenv_path=ENV_DIR,
+            key_to_set="INVITE_LINK",
             value_to_set=public_channel
         )
     server_url = os.getenv("SERVER_URL")
     if server_url is None:
         server_url = input("Enter the Minecraft server URL: ")
         set_key(
-            dotenv_path=f"{RTDIR}/.env",
-            key_to_set="PUBLIC_CHANNEL",
+            dotenv_path=ENV_DIR,
+            key_to_set="SERVER_URL",
             value_to_set=public_channel
         )
 
