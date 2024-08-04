@@ -12,7 +12,7 @@ import os
 import shutil
 import time
 
-import logFormat
+import log_format
 from configs import discordsrv, essentialsx, eula, properties
 from scheduler import Scheduler
 from server import Server
@@ -35,7 +35,7 @@ def select_world():
     """
     # Display Options
     print("Select World to load. If creating a new world, enter a name that doesn't exist yet.")
-    ops = [x for x in os.listdir(DEFAULT_PATH) if os.path.isdir(os.path.join(DEFAULT_PATH, x))]
+    ops = [x for x in os.listdir(DEFAULT_PATH) if (os.path.isdir(os.path.join(DEFAULT_PATH, x)) and x != "Backups")]
     for i, op in enumerate(ops):
         print(f"({i}) {op}")
 
@@ -121,7 +121,7 @@ def generate_world():
             else:
                 logger.error("Addon not in list of options. Please select an index from the following list:")
 
-    logger.warning("Additional Mods can be added manually later in the './mods' or './plugins' directory")
+    logger.warning("Additional Mods can be added later in the './mods' or './plugins' directory")
     logger.info("World: %s", ACTIVE_PATH)
     logger.info("Backups: %s", BACKUP_PATH)
     logger.info("Logname: %s", logname)
@@ -211,7 +211,7 @@ if __name__ == "__main__":
 
     ### LOGGING SECTION ###
     logname = ACTIVE_PATH + '/' + 'MCSERVER.log'
-    logFormat.format_logs(logger_name="MCLOG", file_name=logname)
+    log_format.format_logs(logger_name="MCLOG", file_name=logname)
     logger = logging.getLogger("MCLOG")
 
     BACKUP_PATH = os.path.join(DEFAULT_PATH, "Backups")
