@@ -64,11 +64,13 @@ class Pipeline:
         # Remove the files that exceed the backup limits
         try:
             while len(hourly) > self.hcap:
-                logger.info("Removing Hourly Backup: %s", os.path.join(self.zip_dir, hourly.pop(0)))
-                os.remove(os.path.join(self.zip_dir, hourly.pop(0)))
+                list_iter = hourly.pop(0)
+                logger.info("Removing Hourly Backup: %s", os.path.join(self.zip_dir, list_iter))
+                os.remove(os.path.join(self.zip_dir, list_iter))
             while len(daily) > self.dcap:
-                logger.info("Removing Daily Backup: %s", os.path.join(self.zip_dir, daily.pop(0)))
-                os.remove(os.path.join(self.zip_dir, daily.pop(0)))
+                list_iter = daily.pop(0)
+                logger.info("Removing Daily Backup: %s", os.path.join(self.zip_dir, list_iter))
+                os.remove(os.path.join(self.zip_dir, list_iter))
             return True
         except OSError as e:
             logger.error(e)
