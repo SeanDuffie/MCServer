@@ -3,6 +3,7 @@
 
 # Output Files
 *.zip
+*.env
 
 # Bedrock generated files
 Bedrock/worlds/*

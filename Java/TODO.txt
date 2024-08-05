@@ -1,10 +1,6 @@
 # List of things to be done
 
-    1. There should be one directory that is known as the active directory, this is the server
-        that is currently running and being backed up.
-    2. Another directory should contain all backups, which should be grouped together in
-        sub-directories based on which world they belong to.
-    4. Restore Backup Process
+    - [x] Restore Backup Process
         1. Stop Server
         2. Print a list of backup history (Maybe format this like a git branch tree)
         3. Allow user to pick the backup to use from the enumeration
@@ -12,7 +8,7 @@
         5. (is this necessary?) Clear active folder
         6. Unzip chosen backup to the active folder
         7. Restart Server
-    5. Launch Process
+    - [x] Launch Process
         1. Run current or switch worlds
         2. If switching worlds, pick world
             - Print list of existing worlds
@@ -21,7 +17,7 @@
         3. After picking new world, decide whether to save current one
         4. If generating new world from scratch, pick the jar file of the desired version
             - Auto generate the eula?
-    6. History json in active directory (will be included in backups)
+    - [ ] History json in active directory (will be included in backups)
         - Name of the world
         - Name (zipname or path) of the previous backup
         - Forge, Paper, or Vanilla?
