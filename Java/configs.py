@@ -22,6 +22,8 @@ if not load_dotenv(dotenv_path=ENV_DIR):
         pass  # Do nothing, just create the file
 ###################################################
 
+# TODO Server Icon
+
 def eula(world_path: str = DEFAULT_PATH):
     """ Generates the EULA and automatically accepts it.
 
@@ -222,7 +224,7 @@ def discordsrv(world_path: str = DEFAULT_PATH):
         set_key(
             dotenv_path=ENV_DIR,
             key_to_set="CONSOLE_CHANNEL",
-            value_to_set=public_channel
+            value_to_set=console_channel
         )
     voice_category = os.getenv("VOICE_CATEGORY")
     if voice_category is None:
@@ -230,7 +232,7 @@ def discordsrv(world_path: str = DEFAULT_PATH):
         set_key(
             dotenv_path=ENV_DIR,
             key_to_set="VOICE_CATEGORY",
-            value_to_set=public_channel
+            value_to_set=voice_category
         )
     lobby_channel = os.getenv("LOBBY_CHANNEL")
     if lobby_channel is None:
@@ -238,7 +240,7 @@ def discordsrv(world_path: str = DEFAULT_PATH):
         set_key(
             dotenv_path=ENV_DIR,
             key_to_set="LOBBY_CHANNEL",
-            value_to_set=public_channel
+            value_to_set=lobby_channel
         )
     invite_link = os.getenv("INVITE_LINK")
     if invite_link is None:
@@ -246,7 +248,7 @@ def discordsrv(world_path: str = DEFAULT_PATH):
         set_key(
             dotenv_path=ENV_DIR,
             key_to_set="INVITE_LINK",
-            value_to_set=public_channel
+            value_to_set=invite_link
         )
     server_url = os.getenv("SERVER_URL")
     if server_url is None:
@@ -254,7 +256,7 @@ def discordsrv(world_path: str = DEFAULT_PATH):
         set_key(
             dotenv_path=ENV_DIR,
             key_to_set="SERVER_URL",
-            value_to_set=public_channel
+            value_to_set=server_url
         )
 
     # Check that the server.properties file has already been generated
