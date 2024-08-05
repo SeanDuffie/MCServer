@@ -37,7 +37,7 @@ class Scheduler(threading.Timer):
             interval (datetime.timedelta): Seconds in between actions.
 
         Returns:
-            datetime.datetime: Timestamp of the next run
+            datetime.datetime: Timestamp of the next run.
         """
         if interval > datetime.timedelta(seconds=86399):
             # If the program is started in the morning between 12AM and 6AM, round next time down

@@ -52,7 +52,7 @@ class Pipeline:
                     prev_backup_type = parsed[1]
                 except IndexError:
                     logger.error("Filename has incorrect format: %s", filename)
-                    logger.error("Should be {server_name}_{timestamp}_{backup_type}")
+                    logger.error("Should be {timestamp}_{backup_type}")
                     return False
 
                 if prev_backup_type == "Hourly":
@@ -81,7 +81,7 @@ class Pipeline:
         """ Compresses the active directory into a zip archive that can be accessed later.
 
         Args:
-            backup_type (str): How should this backup be classified? (Hourly, Daily, Manual)
+            backup_type (str): How should this backup be classified? (Hourly, Daily, Manual, Revert)
 
         Returns:
             bool: Success?
