@@ -1,4 +1,4 @@
-""" @file schedule.py
+""" @file scheduler.py
     @author Sean Duffie
     @brief Scheduler thread wrapper class that runs the backup function on every interval
 """
