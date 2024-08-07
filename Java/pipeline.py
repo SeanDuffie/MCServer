@@ -113,22 +113,22 @@ class Pipeline:
                     # Determine the output path
                     local_path = src_path.replace(self.src_dir, "")
 
-                # Filter files included in the zip file.
-                # # NOTE: Comment out either whitelist or blacklist for different behavior.
-                # whitelist = ["world", "world_nether", "world_the_end"]
-                # if any(x in local_path for x in whitelist):
-                #     logger.warning("Whitelist Accepted: %s", local_path)
-                #     # Add each file to the ZIP archive
-                #     zip_file.write(src_path, local_path)
-                # else:
-                #     logger.warning("Whitelist Rejected: %s", local_path)
-                blacklist = ["Backups"]
-                if all(x not in local_path for x in blacklist):
-                    # logger.warning("Blacklist Accepted: %s", local_path)
-                    # Add each file to the ZIP archive
-                    zip_file.write(src_path, local_path)
-                else:
-                    logger.warning("Blacklist Rejected: %s", local_path)
+                    # Filter files included in the zip file.
+                    # # NOTE: Comment out either whitelist or blacklist for different behavior.
+                    # whitelist = ["world", "world_nether", "world_the_end"]
+                    # if any(x in local_path for x in whitelist):
+                    #     logger.warning("Whitelist Accepted: %s", local_path)
+                    #     # Add each file to the ZIP archive
+                    #     zip_file.write(src_path, local_path)
+                    # else:
+                    #     logger.warning("Whitelist Rejected: %s", local_path)
+                    blacklist = ["Backups"]
+                    if all(x not in local_path for x in blacklist):
+                        # logger.warning("Blacklist Accepted: %s", local_path)
+                        # Add each file to the ZIP archive
+                        zip_file.write(src_path, local_path)
+                    else:
+                        logger.warning("Blacklist Rejected: %s", local_path)
 
         logger.debug("Files compressed into: (%s)\n\tfrom (%s)", zip_path, self.src_dir)
         return True
