@@ -28,6 +28,17 @@ class Pipeline:
         assert os.path.isdir(self.src_dir)
         self.project_name: str = os.path.basename(self.src_dir)
 
+        # Find initial "last modified" timestamps
+        self.tracker = {}
+        for dirpath, _, filenames in os.walk(self.src_dir):
+            for filename in filenames:
+                # Acquire the source path
+                src_path = os.path.join(dirpath, filename)
+                # Determine the output path
+                local_path = src_path.replace(self.src_dir, "")
+
+                self.tracker[local_path] = os.path.getmtime(src_path)
+
         # Path of output ZIP archive
         self.zip_dir: str = os.path.join(zip_dir, self.project_name)
         if not os.path.isdir(self.zip_dir):
@@ -77,7 +88,7 @@ class Pipeline:
             logger.error("Error Removing Backups!")
             return False
 
-    def backup(self, backup_type: str = "Manual"):
+    def backup(self, backup_type: str = "Manual", ignore_same: bool = False, whitelist: bool = False):
         """ Compresses the active directory into a zip archive that can be accessed later.
 
         Args:
@@ -107,6 +118,21 @@ class Pipeline:
         with zipfile.ZipFile(zip_path, 'w') as zip_file:
             # Iterate over the files in the directory
             for dirpath, _, filenames in os.walk(self.src_dir):
+                # Check the last modified timestamps
+                if ignore_same:
+                    for filename in filenames:
+                        # Acquire the source path
+                        src_path = os.path.join(dirpath, filename)
+                        # Determine the output path
+                        local_path = src_path.replace(self.src_dir, "")
+
+                        # TODO: Start Tracking new files
+                        if local_path not in self.tracker:
+                            logger.warning("New File found! %s", local_path)
+                        # TODO: Mark when an existing file changes
+                        elif self.tracker[local_path] != os.path.getmtime(src_path):
+                            logger.warning("File has been modified! %s", local_path)
+
                 for filename in filenames:
                     # Acquire the source path
                     src_path = os.path.join(dirpath, filename)
@@ -114,21 +140,20 @@ class Pipeline:
                     local_path = src_path.replace(self.src_dir, "")
 
                     # Filter files included in the zip file.
-                    # # NOTE: Comment out either whitelist or blacklist for different behavior.
-                    # whitelist = ["world", "world_nether", "world_the_end"]
-                    # if any(x in local_path for x in whitelist):
-                    #     logger.warning("Whitelist Accepted: %s", local_path)
-                    #     # Add each file to the ZIP archive
-                    #     zip_file.write(src_path, local_path)
-                    # else:
-                    #     logger.warning("Whitelist Rejected: %s", local_path)
-                    blacklist = ["Backups"]
-                    if all(x not in local_path for x in blacklist):
-                        # logger.warning("Blacklist Accepted: %s", local_path)
-                        # Add each file to the ZIP archive
-                        zip_file.write(src_path, local_path)
+                    if whitelist:
+                        whitelist = ["world", "world_nether", "world_the_end"]
+                        if any(x in local_path for x in whitelist):
+                            # Add each file to the ZIP archive
+                            zip_file.write(src_path, local_path)
+                        else:
+                            logger.warning("Whitelist Rejected: %s", local_path)
                     else:
-                        logger.warning("Blacklist Rejected: %s", local_path)
+                        blacklist = ["Backups"]
+                        if all(x not in local_path for x in blacklist):
+                            # Add each file to the ZIP archive
+                            zip_file.write(src_path, local_path)
+                        else:
+                            logger.warning("Blacklist Rejected: %s", local_path)
 
         logger.debug("Files compressed into: (%s)\n\tfrom (%s)", zip_path, self.src_dir)
         return True
