@@ -80,9 +80,14 @@ class Server():
             logger.error("Error Writing to Server. Is it inactive?")
             return False
 
-    def backup(self, backup_type: Literal["Daily", "Hourly", "Manual", "Restore"]):
+    def backup(self, backup_type: Literal["Daily", "Hourly", "Manual", "Restore"], ignore_same: bool = False, whitelist: bool = False):
         """ Temporarily pauses the server autosaving to prevent corruption,
             Then backs up the server using the Pipeline.backup function.
+
+        Args:
+            backup_type (str): What type of backup is this? (Affects auto-deletion and output name)
+            ignore_same (bool): If true, will skip the backup if no files have been changed.
+            whitelist (bool): If true, will only backup certain files. Else will blacklist the Backups folder.
 
         Returns:
             bool: Did the backup succeed?
@@ -99,7 +104,7 @@ class Server():
         time.sleep(3)
 
         self.p.delete_old()
-        check = self.p.backup(backup_type=backup_type)
+        check = self.p.backup(backup_type=backup_type, ignore_same=ignore_same, whitelist=whitelist)
 
         # Resume Autosave
         self.server_command("save-on")

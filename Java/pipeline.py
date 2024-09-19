@@ -93,6 +93,8 @@ class Pipeline:
 
         Args:
             backup_type (str): How should this backup be classified? (Hourly, Daily, Manual, Revert)
+            ignore_same (bool): If true, will skip the backup if no files have been changed.
+            whitelist (bool): If true, will only backup certain files. Else will blacklist the Backups folder.
 
         Returns:
             bool: Success?
