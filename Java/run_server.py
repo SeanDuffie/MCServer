@@ -22,7 +22,8 @@ TOP_PATH = os.path.dirname(__file__)
 DEFAULT_PATH: str = os.path.join(TOP_PATH, "Worlds")
 ACTIVE_PATH: str = ""
 BACKUP_PATH: str = ""
-logger: logging.Formatter = None
+log_format.format_logs(logger_name="MCServer")
+logger: logging.Formatter = logging.getLogger("MCServer")
 
 
 def validate_input(ops):
@@ -49,8 +50,17 @@ def validate_input(ops):
             assert sel < len(ops)
 
             if sel == 0:
-                server_name = input("Enter New Server Name: ")
                 known = False
+                while True:
+                    try:
+                        server_name = input("Enter New Server Name: ")
+                        assert server_name is not None
+                        assert server_name != "_"
+                        assert not any((c in server_name) for c in "\`/<>\:\"\\|?*")
+                        break
+                    except AssertionError as e:
+                        logger.error(e)
+                        logger.error("Bad Server Name.")
                 # TODO: Prompt for new stored RAM value.
             else:
                 server_name = ops[sel]
@@ -58,7 +68,7 @@ def validate_input(ops):
             break
         except AssertionError as e:
             logger.error(e)
-            logger.error("Bad input")
+            logger.error("Bad Server Index.")
     return server_name, ram, known
 
 def select_world():
