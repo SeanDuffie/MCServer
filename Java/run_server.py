@@ -25,6 +25,42 @@ BACKUP_PATH: str = ""
 logger: logging.Formatter = None
 
 
+def validate_input(ops):
+    """ Capture input from user to select current server
+
+    Args:
+        ops (list[str]): list of existing world/server options.
+
+    Returns:
+        server_name (str): Name of the server that is being launched.
+        ram (int): Gigabytes of ram to allocate to the server.
+        known (bool): Should new folders/files be generated or use existing ones?
+    """
+    server_name = ""
+    ram = 8
+    known = True
+
+    while True:
+        try:
+            sel = int(input("Select Server Index: "))
+
+            assert isinstance(sel, int)
+            assert sel >= 0
+            assert sel < len(ops)
+
+            if sel == 0:
+                server_name = input("Enter New Server Name: ")
+                known = False
+                # TODO: Prompt for new stored RAM value.
+            else:
+                server_name = ops[sel]
+                # TODO: Retrieve stored RAM value.
+            break
+        except AssertionError as e:
+            logger.error(e)
+            logger.error("Bad input")
+    return server_name, ram, known
+
 def select_world():
     """ Prompts the user to choose which world they want to load.
 
@@ -36,19 +72,12 @@ def select_world():
     # Display Options
     print("Select World to load. If creating a new world, enter a name that doesn't exist yet.")
     ops = [x for x in os.listdir(DEFAULT_PATH) if (os.path.isdir(os.path.join(DEFAULT_PATH, x)) and x != "Backups")]
+    ops.insert(0, "[New Server]")
+    # print("(0) [New Server]")
     for i, op in enumerate(ops):
         print(f"({i}) {op}")
 
-    # Collect Input
-    sel = input("Enter World Name: ")
-    server_name = sel
-    ram = 8
-
-    known = False
-    if sel in ops:
-        known = True
-
-    return server_name, ram, known
+    return validate_input(ops)
 
 def generate_world():
     """ Generates a new world from scratch.
