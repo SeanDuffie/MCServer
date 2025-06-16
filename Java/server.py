@@ -29,6 +29,8 @@ def get_mc_ver(filename: str):
     last = filename.index("-", first+1)
     # Cut off the "1." (major version) to convert to float
     version = float(filename[first+1:last][2:])
+    logger.info("Launching MC Jar File: %s", filename)
+    logger.info("Running MC Version: %f", version)
     return version
 
 def get_java(version: float):
@@ -94,6 +96,7 @@ def get_java(version: float):
             logging.error("https://jdk.java.net/24/")
             sys.exit(1)
 
+    logger.info("Running Java version: %s", java_path)
     return java_path
 
 class Server():
