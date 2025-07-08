@@ -26,7 +26,7 @@ log_format.format_logs(logger_name="MCServer")
 logger: logging.Formatter = logging.getLogger("MCServer")
 
 
-def validate_input(ops):
+def validate_name(ops):
     """ Capture input from user to select current server
 
     Args:
@@ -44,8 +44,6 @@ def validate_input(ops):
     while True:
         try:
             sel = int(input("Select Server Index: "))
-
-            assert isinstance(sel, int)
             assert sel >= 0
             assert sel < len(ops)
 
@@ -69,6 +67,9 @@ def validate_input(ops):
         except AssertionError as e:
             logger.error(e)
             logger.error("Bad Server Index.")
+        except ValueError as e:
+            logger.error(e)
+            logger.error("Index must be an integer.")
     return server_name, ram, known
 
 def select_world():
@@ -87,7 +88,86 @@ def select_world():
     for i, op in enumerate(ops):
         print(f"({i}) {op}")
 
-    return validate_input(ops)
+    return validate_name(ops)
+
+def select_version(launch_dir: str):
+    """ Select the version of Minecraft to use.
+
+    Starts in the previously selected version folder (vanilla, paper, forge).
+
+    Args:
+        launch_dir (str): path of the expected version.
+    """
+    ver_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
+    version = ""
+    while version not in ver_ops:
+        ver_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
+        for i, ver in enumerate(ver_ops):
+            print(f"({i}) {ver}")
+
+        try:
+            sel = int(input("What type of server will this be? "))
+            assert sel < len(ver_ops)
+            assert sel >= 0
+
+            version = ver_ops[i]
+        except AssertionError as e:
+            logger.error(e)
+            logger.error("Error: Invalid option.")
+        except ValueError as e:
+            logger.error(e)
+            logger.error("Index must be an integer.")
+
+    return os.path.join(launch_dir, version)
+
+def select_plugins(launcher: str, ver_dir: str):
+    """ Select the plugins to include (assuming the server isn't vanilla).
+
+    Args:
+        launcher (str): The type of Minecraft launcher ('forge' or 'paper').
+        ver_dir (str): The path of the chosen version.
+    """
+    addon_src_dir = os.path.join(ver_dir, "addons")
+    mod_ops = [
+        x for x in os.listdir(addon_src_dir) if os.path.isfile(os.path.join(addon_src_dir, x))
+    ]
+    while True:
+        # Skip if no options are available
+        if not mod_ops:
+            break
+
+        # Display options and select one
+        for i, mod in enumerate(mod_ops):
+            print(f"({i}) {mod}")
+        try:
+            mod_num = int(
+                input("What Plugins/Mods do you want? (Leave blank and hit 'enter' to skip): ")
+            )
+        except ValueError:
+            break
+
+        # Handle selection
+        if mod_num in range(len(mod_ops)):
+            mod = mod_ops[mod_num]
+            if launcher == "forge":
+                # Move addon into server mod directory
+                addon_target_dir = os.path.join(ACTIVE_PATH, "mods")
+            else:       # launcher == "paper"
+                # Move addon into server mod directory
+                addon_target_dir = os.path.join(ACTIVE_PATH, "plugins")
+            os.makedirs(addon_target_dir, exist_ok=True)
+            logger.info(
+                "Moving addon '%s' to world addon directory '%s'",
+                mod,
+                addon_target_dir
+            )
+            shutil.copyfile(
+                os.path.join(addon_src_dir, mod),
+                os.path.join(addon_target_dir, mod)
+            )
+            mod_ops.pop(mod_num)
+        else:
+            logger.error("Addon not in list of options. Please select an index from the following list:")
 
 def generate_world():
     """ Generates a new world from scratch.
@@ -101,14 +181,7 @@ def generate_world():
     while launcher not in ['vanilla', 'paper', 'forge']:
         launcher = input("What launcher will this server use? (vanilla, paper, or forge): ")
     launch_dir = os.path.join(TOP_PATH, f"versions/{launcher}")
-
-    ver_ops = [x for x in os.listdir(launch_dir) if os.path.isdir(os.path.join(launch_dir, x))]
-    for i, ver in enumerate(ver_ops):
-        print(f"({i}) {ver}")
-    version = ""
-    while version not in ver_ops:
-        version = input("What type of server will this be? ")
-    ver_dir = os.path.join(launch_dir, version)
+    ver_dir = select_version(launch_dir)
 
     # Copy server jar into active dir
     for fname in os.listdir(ver_dir):
@@ -118,47 +191,7 @@ def generate_world():
 
     # If not vanilla, allow for addons
     if launcher != "vanilla":
-        addon_src_dir = os.path.join(ver_dir, "addons")
-        mod_ops = [
-            x for x in os.listdir(addon_src_dir) if os.path.isfile(os.path.join(addon_src_dir, x))
-        ]
-        while True:
-            # Skip if no options are available
-            if not mod_ops:
-                break
-
-            # Display options and select one
-            for i, mod in enumerate(mod_ops):
-                print(f"({i}) {mod}")
-            try:
-                mod_num = int(
-                    input("What Plugins/Mods do you want? (Leave blank and hit 'enter' to skip): ")
-                )
-            except ValueError:
-                break
-
-            # Handle selection
-            if mod_num in range(len(mod_ops)):
-                mod = mod_ops[mod_num]
-                if launcher == "forge":
-                    # Move addon into server mod directory
-                    addon_target_dir = os.path.join(ACTIVE_PATH, "mods")
-                elif launcher == "paper":
-                    # Move addon into server mod directory
-                    addon_target_dir = os.path.join(ACTIVE_PATH, "plugins")
-                os.makedirs(addon_target_dir, exist_ok=True)
-                logger.info(
-                    "Moving addon '%s' to world addon directory '%s'",
-                    mod,
-                    addon_target_dir
-                )
-                shutil.copyfile(
-                    os.path.join(addon_src_dir, mod),
-                    os.path.join(addon_target_dir, mod)
-                )
-                mod_ops.pop(mod_num)
-            else:
-                logger.error("Addon not in list of options. Please select an index from the following list:")
+        select_plugins(launcher, ver_dir)
 
     logger.warning("Additional Mods can be added later in the './mods' or './plugins' directory")
     logger.info("World: %s", ACTIVE_PATH)
