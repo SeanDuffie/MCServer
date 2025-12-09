@@ -117,6 +117,7 @@ class Pipeline:
             return False
 
         # Open Zipfile for writing
+        # TODO: (maybe) Add a json to track each file and when it was last modified? This would allow us to skip backups if nothing has changed. It may also help with isolating specific chuncks to reset in an emergency.
         with zipfile.ZipFile(zip_path, 'w') as zip_file:
             # Iterate over the files in the directory
             for dirpath, _, filenames in os.walk(self.src_dir):
@@ -153,7 +154,11 @@ class Pipeline:
                         blacklist = ["Backups"]
                         if all(x not in local_path for x in blacklist):
                             # Add each file to the ZIP archive
-                            zip_file.write(src_path, local_path)
+                            try:
+                                zip_file.write(src_path, local_path)        # FIXME: This is running into a PermissionError
+                            except PermissionError as e:
+                                logger.error("Permission Error with zip file")
+                                logger.error(e)
                         else:
                             logger.warning("Blacklist Rejected: %s", local_path)
 
