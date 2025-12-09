@@ -113,10 +113,18 @@ TODO
 
 ## TODO:
 
+TODO: add version switching
+TODO: add world switching
+
+    - [ ] LINUX SETUPS FOR OLD COMPUTERS
+        - [ ] DietPi
+        - [ ] Mint Cinnamon - Based on Ubuntu, 
+        - [ ] Fedora
+        - [ ] Lubuntu
     - [ ] Add branches for different stages of the Server process
         - [x] Pre Setup
         - [ ] Forge
-        - [ ] Paper
+        - [x] Paper
         - [x] Vanilla
     - [ ] Scripts
         - [x] Add a script to auto configure server ip
@@ -127,6 +135,8 @@ TODO
     - [ ] Reusability
         - [x] Update the gitignore to exclude all unnecessary, unique, or sensitive files
         - [x] FIXME: How do I gitignore the world directories???
+            - NOTE: This can probably be done by using the default world name (for uniformity)
+            - When switching worlds it will make the process easier, store the actual world name in a json elsewhere, and use similar functions to the backup/revert_backup scripts.
         - [ ] Add a scripted way to swap worlds from an external location, can work similarly to backup/restore backup
         - [ ] Document steps to configure DiscordSRV correctly
             - Mostly in config.yml
@@ -134,3 +144,5 @@ TODO
             - Channels = Public discord channel id (copy id)
             - BotToken = Discord Bot
             - DiscordGameStatus = Activity status for the bot account
+    - Features:
+        - [ ] Version name and number added to the MOTD
