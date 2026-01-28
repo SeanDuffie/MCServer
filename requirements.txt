@@ -1,0 +1,13 @@
+logging
+tkinter
+datetime
+shutil
+subprocess
+threading
+yaml
+
+# Linux, different env, no tkinter
+python-dotenv
+
+#cpu checkup
+psutil
